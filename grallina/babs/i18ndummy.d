@@ -19,7 +19,7 @@
 // along with dguitk; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110, USA
 
-module dguitk.bab.i18ndummy;
+module grallina.babs.i18ndummy;
 
 /**
  * Provide an interface for tagging/collecting localizable strings.
