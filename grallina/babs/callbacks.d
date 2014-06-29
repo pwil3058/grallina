@@ -44,13 +44,6 @@ private class ClientData(T...) {
     }
 }
 
-abstract class ConnectionProxy {
-    abstract bool is_suspended();
-    abstract bool is_suspended(bool value);
-    abstract bool is_connected();
-    abstract void disconnect();
-}
-
 class Connection(T...) {
 private:
     Callback!(T) callback;
@@ -86,9 +79,16 @@ public:
     }
 }
 
-abstract class CallbackProxy {
+class Callback(T...) {
     enum : ubyte { BEFORE, NORMAL, AFTER }
+    alias bool delegate(T, Variant[]...) DT;
+    private ClientData!(T)[][3] ordered_clients;
     private bool _blockable;
+
+    this (bool blockable=true)
+    {
+        _blockable = blockable;
+    }
 
     bool is_blockable() { return _blockable; }
 
@@ -98,43 +98,28 @@ abstract class CallbackProxy {
         return _blockable;
     }
 
-    abstract ConnectionProxy connect(V...)(V args);
-    abstract ConnectionProxy connect_before(V...)(V args);
-    abstract ConnectionProxy connect_after(V...)(V args);
-    abstract void emit(V...)(V args);
-}
-
-class Callback(T...): CallbackProxy {
-    alias bool delegate(T, Variant[]...) DT;
-    private ClientData!(T)[][3] ordered_clients;
-
-    this (bool blockable=true)
+    Connection!(T) connect(V...)(DT dlg, V args)
     {
-        _blockable = blockable;
-    }
-
-    Connection!(T) connect(V...)(V args)
-    {
-        auto ccd = new ClientData!(T)(args[0], variantArray(args[1..$]));
+        auto ccd = new ClientData!(T)(dlg, variantArray(args));
         ordered_clients[NORMAL] ~= ccd;
         return new Connection!(T)(this, ccd);
     }
 
-    Connection!(T) connect_before(V...)(V args)
+    Connection!(T) connect_before(V...)(DT dlg, V args)
     {
-        auto ccd = new ClientData!(T)(args[0], variantArray(args[1..$]));
+        auto ccd = new ClientData!(T)(dlg, variantArray(args));
         ordered_clients[BEFORE].insertInPlace(0, ccd);
         return new Connection!(T)(this, ccd);
     }
 
-    Connection!(T) connect_after(V...)(V args)
+    Connection!(T) connect_after(V...)(DT dlg, V args)
     {
-        auto ccd = new ClientData!(T)(args[0], variantArray(args[1..$]));
+        auto ccd = new ClientData!(T)(dlg, variantArray(args));
         ordered_clients[AFTER] ~= ccd;
         return new Connection!(T)(this, ccd);
     }
 
-    void emit(V...)(V args)
+    void emit(T...)(T args)
     {
         foreach (clients; ordered_clients) {
             foreach (client; clients) {
@@ -231,29 +216,3 @@ unittest {
     assert(b.ii == 8 && b.ss == "one true: blocking" && b.vargs == variantArray() && b.bb == true);
 }
 
-
-/// An callback specific exception for reporting errors.
-abstract class CallbackException: Exception {
-    this(string message, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        super("Callbacks Error: " ~ message, file, line, next);
-    }
-}
-
-private class CallbackDuplicateName: CallbackException {
-    static auto TEMPLATE = T!"A callback named \"%s\" already exists.";
-
-    this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        super(format(TEMPLATE, name), file, line, next);
-    }
-}
-
-private class CallbackUnknownName: CallbackException {
-    static auto TEMPLATE = T!"Unknown callback name: \"%s\".";
-
-    this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        super(format(TEMPLATE, name), file, line, next);
-    }
-}
