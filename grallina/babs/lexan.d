@@ -24,7 +24,6 @@ module grallina.babs.lexan;
 import std.regex;
 import std.ascii;
 import std.string;
-// TODO: make sure LexicalAnalyser works with UTF-8 Unicode
 
 enum MatchType {literal, regularExpression};
 
@@ -454,4 +453,88 @@ and some included code %{
     assert(im.tokenSpec is null && im.matchedText == "$!" && im.location.lineNumber == 2);
     im = ila.front(); ila.popFront();
     assert(im.tokenSpec is null && im.matchedText == "%%" && im.location.lineNumber == 2);
+}
+
+class InjectableLexicalAnalyser(H) {
+    LexicalAnalyserSpecification!(H) specification;
+    LexicalAnalyser!(H)[] lexan_stack;
+
+    this (LexicalAnalyserSpecification!(H) specification, string text, string label)
+    {
+        this.specification = specification;
+        lexan_stack ~= specification.new_analyser(text, label);
+    }
+
+    void inject(string text, string label)
+    {
+        lexan_stack ~= specification.new_analyser(text, label);
+    }
+
+    @property
+    bool empty()
+    {
+        return lexan_stack.length == 0;
+    }
+
+    @property
+    MatchResult!(H) front()
+    {
+        if (lexan_stack.length == 0) return null;
+        return lexan_stack[$ - 1].currentMatch;
+    }
+
+    void popFront()
+    {
+        lexan_stack[$ - 1].popFront();
+        while (lexan_stack.length > 0 && lexan_stack[$ - 1].empty) lexan_stack.length--;
+    }
+}
+unittest {
+    auto tslist = [
+        new TokenSpec!string("IF", "\"if\""),
+        new TokenSpec!string("IDENT", "[a-zA-Z]+[\\w_]*"),
+        new TokenSpec!string("BTEXTL", r"&\{(.|[\n\r])*&\}"),
+        new TokenSpec!string("PRED", r"\?\{(.|[\n\r])*\?\}"),
+        new TokenSpec!string("LITERAL", "(\"\\S+\")"),
+        new TokenSpec!string("ACTION", r"(!\{(.|[\n\r])*?!\})"),
+        new TokenSpec!string("PREDICATE", r"(\?\((.|[\n\r])*?\?\))"),
+        new TokenSpec!string("CODE", r"(%\{(.|[\n\r])*?%\})"),
+    ];
+    auto skiplist = [
+        r"(/\*(.|[\n\r])*?\*/)", // D multi line comment
+        r"(//[^\n\r]*)", // D EOL comment
+        r"(\s+)", // White space
+    ];
+    auto laspec = new LexicalAnalyserSpecification!string(tslist, skiplist);
+    auto ila = new InjectableLexicalAnalyser!string(laspec, "if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
+    auto m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec is null && m.matchedText == "9" && m.location.lineNumber == 3);
+    ila.inject("if one \"name\"", "two");
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1 && m.location.label == "two");
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "one" && m.location.lineNumber == 1 && m.location.label == "two");
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"name\"" && m.location.lineNumber == 1 && m.location.label == "two");
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec is null && m.matchedText == "$" && m.location.lineNumber == 3);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
+    m = ila.front(); ila.popFront();
+    assert(m.tokenSpec.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
+    assert(ila.empty);
 }
