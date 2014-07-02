@@ -25,6 +25,13 @@ import std.regex;
 import std.ascii;
 import std.string;
 
+class LexanException: Exception {
+    this(string message, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        super("LexAn Error:" ~ message, file, line, next);
+    }
+}
+
 enum MatchType {literal, regularExpression};
 
 class TokenSpec(H) {
@@ -63,14 +70,23 @@ unittest {
     assert(!ti.re.empty);
 }
 
+class LexanDuplicateLiteral: Exception {
+    this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        super(format("Duplicated literal specification: \"%s\".", name), file, line, next);
+    }
+}
+
 class LiteralMatchNode {
     bool validMatch;
     LiteralMatchNode[char] tails;
 
     this(string str)
     {
-        validMatch = str.length == 0;
-        if (!validMatch) {
+        if (str.length == 0) {
+            if (validMatch) throw new LexanException("");
+            validMatch = true;
+        } else {
             tails[str[0]] = new LiteralMatchNode(str[1 .. $]);
         }
     }
@@ -78,6 +94,7 @@ class LiteralMatchNode {
     void add_tail(string new_tail)
     {
         if (new_tail.length == 0) {
+            if (validMatch) throw new LexanException("");
             validMatch = true;
         } else if (new_tail[0] in tails) {
             tails[new_tail[0]].add_tail(new_tail[1 .. $]);
@@ -94,10 +111,14 @@ private:
 public:
     void add_literal(string literal)
     {
-        if (literal[0] in literals) {
-            literals[literal[0]].add_tail(literal[1 .. $]);
-        } else {
-            literals[literal[0]] = new LiteralMatchNode(literal[1 .. $]);
+        try {
+            if (literal[0] in literals) {
+                literals[literal[0]].add_tail(literal[1 .. $]);
+            } else {
+                literals[literal[0]] = new LiteralMatchNode(literal[1 .. $]);
+            }
+        } catch (LexanException edata) {
+            throw new LexanDuplicateLiteral(literal);
         }
     }
 
@@ -115,8 +136,9 @@ public:
 }
 
 unittest {
+    import std.exception;
     auto lm = new LiteralMatcher;
-    auto test_strings = ["alpha", "beta", "gamma", "delta", "test", "tes", "tenth"];
+    auto test_strings = ["alpha", "beta", "gamma", "delta", "test", "tes", "tenth", "alpine", "gammon", "gamble"];
     auto rubbish = "rubbish";
     foreach(test_string; test_strings) {
         assert(lm.get_longest_match(rubbish ~ test_string) == "");
@@ -126,6 +148,9 @@ unittest {
     }
     foreach(test_string; test_strings) {
         lm.add_literal(test_string);
+    }
+    foreach(test_string; test_strings) {
+        assertThrown!LexanDuplicateLiteral(lm.add_literal(test_string));
     }
     foreach(test_string; test_strings) {
         assert(lm.get_longest_match(test_string) == test_string);
