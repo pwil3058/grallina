@@ -48,15 +48,32 @@ struct LiteralLexeme(H) {
         return pattern.length > 0;
     }
 }
+unittest {
+    LiteralLexeme!(int) el;
+    assert(!el.is_valid);
+    static auto ll = LiteralLexeme!(int)(6, "six");
+    assert(ll.is_valid);
+}
 
 struct RegexLexeme(H, RE) {
     H handle;
     RE re;
+
+    @property
+    bool is_valid()
+    {
+        return !re.empty;
+    }
 }
 unittest {
-    static auto ll = LiteralLexeme!(int)(6, "six");
+    RegexLexeme!(int, StaticRegex!char) erel;
+    assert(!erel.is_valid);
     static auto rel = RegexLexeme!(int, StaticRegex!char)(12, ctRegex!("^twelve"));
+    assert(rel.is_valid);
+    RegexLexeme!(int, Regex!char) edrel;
+    assert(!edrel.is_valid);
     auto drel =  RegexLexeme!(int, Regex!char)(12, regex("^twelve"));
+    assert(drel.is_valid);
 }
 
 enum MatchType {literal, regularExpression};
