@@ -182,28 +182,51 @@ struct CharLocation {
 }
 
 class MatchResult(H) {
-    TokenSpec!(H) tokenSpec;
-    string matchedText;
-    CharLocation location;
+private:
+    H _handle;
+    string _matchedText;
+    CharLocation _location;
+    bool _is_valid_match;
 
-    this(TokenSpec!(H) spec, string text, CharLocation locn)
+public:
+    this(H handle, string text, CharLocation locn)
     {
-        tokenSpec = spec;
-        matchedText = text;
-        location = locn;
+        _handle = handle;
+        _matchedText = text;
+        _location = locn;
+        _is_valid_match = true;
     }
 
     this(string text, CharLocation locn)
     {
-        tokenSpec = null;
-        matchedText = text;
-        location = locn;
+        _matchedText = text;
+        _location = locn;
+        _is_valid_match = false;
     }
 
     @property
-    bool is_valid_token()
+    H handle()
     {
-        return tokenSpec !is null;
+        if (!_is_valid_match) throw new LexanException("");
+        return _handle;
+    }
+
+    @property
+    ref string matchedText()
+    {
+        return _matchedText;
+    }
+
+    @property
+    CharLocation location()
+    {
+        return _location;
+    }
+
+    @property
+    bool is_valid_match()
+    {
+        return _is_valid_match;
     }
 }
 
@@ -245,8 +268,12 @@ class LexicalAnalyserSpecification(H) {
     {
         return new LexicalAnalyser!(H)(this, text, label);
     }
-}
 
+    InjectableLexicalAnalyser!(H) new_injectable_analyser(string text, string label="")
+    {
+        return new InjectableLexicalAnalyser!(H)(this, text, label);
+    }
+}
 
 class LexicalAnalyser(H) {
     LexicalAnalyserSpecification!(H) specification;
@@ -316,10 +343,10 @@ class LexicalAnalyser(H) {
             if (llm.length && llm.length >= lrem.length) {
                 // if the matches are of equal length literal wins
                 incr_index_location(llm.length);
-                return new MatchResult!(H)(specification.literalTokenSpecs[llm], llm, location);
+                return new MatchResult!(H)(specification.literalTokenSpecs[llm].handle, llm, location);
             } else if (lrem.length) {
                 incr_index_location(lrem.length);
-                return new MatchResult!(H)(lremts, lrem, location);
+                return new MatchResult!(H)(lremts.handle, lrem, location);
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
@@ -380,27 +407,27 @@ unittest {
     auto laspec = new LexicalAnalyserSpecification!string(tslist, skiplist);
     auto la = laspec.new_analyser("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
+    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
+    assert(m.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec is null && m.matchedText == "9" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matchedText == "9" && m.location.lineNumber == 3);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec is null && m.matchedText == "$" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matchedText == "$" && m.location.lineNumber == 3);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
+    assert(m.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
+    assert(m.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
+    assert(m.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
     assert(la.empty);
     la = laspec.new_analyser("
     some identifiers
@@ -419,25 +446,25 @@ and some included code %{
 %}
 ");
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "some" && m.location.lineNumber == 2);
+    assert(m.handle == "IDENT" && m.matchedText == "some" && m.location.lineNumber == 2);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "identifiers" && m.location.lineNumber == 2);
+    assert(m.handle == "IDENT" && m.matchedText == "identifiers" && m.location.lineNumber == 2);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
-    assert(m.tokenSpec is null);
+    assert(!m.is_valid_match);
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"+=\"" && m.location.lineNumber == 9);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"+=\"" && m.location.lineNumber == 9);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"\"\"" && m.location.lineNumber == 10);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"\"\"" && m.location.lineNumber == 10);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "ACTION" && m.matchedText == "!{ some D code !}" && m.location.lineNumber == 11);
+    assert(m.handle == "ACTION" && m.matchedText == "!{ some D code !}" && m.location.lineNumber == 11);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "PREDICATE" && m.matchedText == "?( a boolean expression ?)" && m.location.lineNumber == 11);
+    assert(m.handle == "PREDICATE" && m.matchedText == "?( a boolean expression ?)" && m.location.lineNumber == 11);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.tokenSpec.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
+    assert(m.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
     auto tilist = [
         new TokenSpec!int(0, "\"if\""),
         new TokenSpec!int(1, "[a-zA-Z]+[\\w_]*"),
@@ -451,15 +478,15 @@ and some included code %{
     auto ilaspec = new LexicalAnalyserSpecification!int(tilist, skiplist);
     auto ila = ilaspec.new_analyser("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto im = ila.front(); ila.popFront();
-    assert(im.tokenSpec.handle == 0 && im.matchedText == "if" && im.location.lineNumber == 1);
+    assert(im.handle == 0 && im.matchedText == "if" && im.location.lineNumber == 1);
     im = ila.front(); ila.popFront();
-    assert(im.tokenSpec.handle == 1 && im.matchedText == "iffy" && im.location.lineNumber == 1);
+    assert(im.handle == 1 && im.matchedText == "iffy" && im.location.lineNumber == 1);
     im = ila.front(); ila.popFront();
-    assert(im.tokenSpec.handle == 4 && im.matchedText == "\"quoted\"" && im.location.lineNumber == 2);
+    assert(im.handle == 4 && im.matchedText == "\"quoted\"" && im.location.lineNumber == 2);
     im = ila.front(); ila.popFront();
-    assert(im.tokenSpec is null && im.matchedText == "$!" && im.location.lineNumber == 2);
+    assert(!im.is_valid_match && im.matchedText == "$!" && im.location.lineNumber == 2);
     im = ila.front(); ila.popFront();
-    assert(im.tokenSpec is null && im.matchedText == "%%" && im.location.lineNumber == 2);
+    assert(!im.is_valid_match && im.matchedText == "%%" && im.location.lineNumber == 2);
 }
 
 class InjectableLexicalAnalyser(H) {
@@ -513,35 +540,35 @@ unittest {
         r"(\s+)", // White space
     ];
     auto laspec = new LexicalAnalyserSpecification!string(tslist, skiplist);
-    auto ila = new InjectableLexicalAnalyser!string(laspec, "if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
+    auto ila = laspec.new_injectable_analyser("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
     auto m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
+    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
+    assert(m.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec is null && m.matchedText == "9" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matchedText == "9" && m.location.lineNumber == 3);
     ila.inject("if one \"name\"", "two");
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "one" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "IDENT" && m.matchedText == "one" && m.location.lineNumber == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "LITERAL" && m.matchedText == "\"name\"" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "LITERAL" && m.matchedText == "\"name\"" && m.location.lineNumber == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec is null && m.matchedText == "$" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matchedText == "$" && m.location.lineNumber == 3);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
+    assert(m.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
+    assert(m.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
     m = ila.front(); ila.popFront();
-    assert(m.tokenSpec.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
+    assert(m.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
     assert(ila.empty);
 }
