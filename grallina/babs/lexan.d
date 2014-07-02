@@ -166,6 +166,7 @@ unittest {
 struct CharLocation {
     // Line numbers and offsets both start at 1 (i.e. human friendly)
     // as these are used for error messages.
+    size_t index;
     size_t lineNumber;
     size_t offset;
     string label; // e.g. name of file that text came from
@@ -177,49 +178,6 @@ struct CharLocation {
         } else {
             return format("%s(%s)", lineNumber, offset);
         }
-    }
-}
-
-class CharLocationData {
-    private size_t[] lineStart;
-    string label;
-
-    this(string text, string label="")
-    {
-        this.label = label;
-        lineStart = [0];
-        if (newline.length == 1) {
-            for (size_t i; i < text.length; i++)
-                if (newline[0] == text[i])
-                    lineStart ~= (i + 1);
-        } else {
-            for (size_t i; i < text.length - newline.length + 1; i++)
-                if (newline == text[i .. i + newline.length])
-                    lineStart ~= (i + newline.length);
-        }
-    }
-
-    CharLocation get_char_location(size_t index)
-    {
-        size_t imin = 0;
-        size_t imax = lineStart.length - 1;
-
-        while (imax > imin) {
-            size_t imid = (imin + imax) / 2;
-            if (lineStart[imid] < index) {
-                imin = imid + 1;
-            } else {
-                imax = imid;
-            }
-        }
-        // lineStart.length > 0 so this should hold?
-        assert(imin == imax);
-
-        // index will be on line at lineStart[imin] or the one before
-        auto ln = (index < lineStart[imin]) ? imin : imin + 1;
-        auto offset = index - lineStart[ln - 1] + 1;
-
-        return CharLocation(ln, offset, label);
     }
 }
 
@@ -289,44 +247,66 @@ class LexicalAnalyserSpecification(H) {
     }
 }
 
+
 class LexicalAnalyser(H) {
     LexicalAnalyserSpecification!(H) specification;
     private string inputText;
-    private size_t index;
-    private CharLocationData charLocationData;
+    private CharLocation index_location;
     private MatchResult!(H) currentMatch;
 
     this (LexicalAnalyserSpecification!(H) specification, string text, string label="")
     {
         this.specification = specification;
+        index_location = CharLocation(0, 1, 1, label);
         inputText = text;
-        index = 0;
-        charLocationData = new CharLocationData(text, label);
         currentMatch = advance();
+    }
+
+    private void incr_index_location(size_t length)
+    {
+        auto next_index = index_location.index + length;
+        for (auto i = index_location.index; i < next_index; i++) {
+            static if (newline.length == 1) {
+                if (newline[0] == inputText[i]) {
+                    index_location.lineNumber++;
+                    index_location.offset = 1;
+                } else {
+                    index_location.offset++;
+                }
+            } else {
+                if (newline == inputText[i .. i + newline.length]) {
+                    index_location.lineNumber++;
+                    index_location.offset = 0;
+                } else {
+                    index_location.offset++;
+                }
+            }
+        }
+        index_location.index = next_index;
     }
 
     private MatchResult!(H) advance()
     {
-        mainloop: while (index < inputText.length) {
+        mainloop: while (index_location.index < inputText.length) {
             // skips have highest priority
             foreach (skipRe; specification.skipReList) {
-                auto m = match(inputText[index .. $], skipRe);
+                auto m = match(inputText[index_location.index .. $], skipRe);
                 if (!m.empty) {
-                    index += m.hit.length;
+                    incr_index_location(m.hit.length);
                     continue mainloop;
                 }
             }
 
             // The reported location is for the first character of the match
-            auto location = charLocationData.get_char_location(index);
+            auto location = index_location;
 
             // Find longest match found by literal match or regex
-            auto llm = specification.literalMatcher.get_longest_match(inputText[index .. $]);
+            auto llm = specification.literalMatcher.get_longest_match(inputText[index_location.index .. $]);
 
             auto lrem = "";
             TokenSpec!(H) lremts;
             foreach (tspec; specification.regexTokenSpecs) {
-                auto m = match(inputText[index .. $], tspec.re);
+                auto m = match(inputText[index_location.index .. $], tspec.re);
                 if (m && m.hit.length > lrem.length) {
                     lrem = m.hit;
                     lremts = tspec;
@@ -335,26 +315,28 @@ class LexicalAnalyser(H) {
 
             if (llm.length && llm.length >= lrem.length) {
                 // if the matches are of equal length literal wins
-                index += llm.length;
+                incr_index_location(llm.length);
                 return new MatchResult!(H)(specification.literalTokenSpecs[llm], llm, location);
             } else if (lrem.length) {
-                index += lrem.length;
+                incr_index_location(lrem.length);
                 return new MatchResult!(H)(lremts, lrem, location);
             } else {
                 // Failure: send back the offending character(s) and location
-                auto start = index;
-                main_loop: while (index < inputText.length) {
+                auto start = index_location.index;
+                auto i = start;
+                main_loop: while (i < inputText.length) {
                     // Gobble characters until something makes sense
-                    index += 1;
-                    if (specification.literalMatcher.get_longest_match(inputText[index .. $]).length > 0) break;
+                    i++;
+                    if (specification.literalMatcher.get_longest_match(inputText[i .. $]).length > 0) break;
                     foreach (tspec; specification.regexTokenSpecs) {
-                        if (match(inputText[index .. $], tspec.re)) break main_loop;
+                        if (match(inputText[i .. $], tspec.re)) break main_loop;
                     }
                     foreach (skipRe; specification.skipReList) {
-                        if (match(inputText[index .. $], skipRe)) break main_loop;
+                        if (match(inputText[i .. $], skipRe)) break main_loop;
                     }
                 }
-                return new MatchResult!(H)(inputText[start .. index], location);
+                incr_index_location(i - start);
+                return new MatchResult!(H)(inputText[start .. index_location.index], location);
             }
         }
 
