@@ -32,6 +32,33 @@ class LexanException: Exception {
     }
 }
 
+struct LiteralLexeme(H) {
+    H handle;
+    string pattern;
+
+    @property
+    size_t length()
+    {
+        return pattern.length;
+    }
+
+    @property
+    bool is_valid()
+    {
+        return pattern.length > 0;
+    }
+}
+
+struct RegexLexeme(H, RE) {
+    H handle;
+    RE re;
+}
+unittest {
+    static auto ll = LiteralLexeme!(int)(6, "six");
+    static auto rel = RegexLexeme!(int, StaticRegex!char)(12, ctRegex!("^twelve"));
+    auto drel =  RegexLexeme!(int, Regex!char)(12, regex("^twelve"));
+}
+
 enum MatchType {literal, regularExpression};
 
 class TokenSpec(H) {
@@ -77,89 +104,103 @@ class LexanDuplicateLiteral: Exception {
     }
 }
 
-class LiteralMatchNode {
-    bool validMatch;
-    LiteralMatchNode[char] tails;
+private class LiteralMatchNode(H) {
+    long lexeme_index;
+    LiteralMatchNode!(H)[char] tails;
 
-    this(string str)
+    this(string str, long str_lexeme_index)
     {
         if (str.length == 0) {
-            if (validMatch) throw new LexanException("");
-            validMatch = true;
+            lexeme_index = str_lexeme_index;
         } else {
-            tails[str[0]] = new LiteralMatchNode(str[1 .. $]);
+            lexeme_index = -1;
+            tails[str[0]] = new LiteralMatchNode(str[1 .. $], str_lexeme_index);
         }
     }
 
-    void add_tail(string new_tail)
+    @property
+    bool validMatch()
+    {
+        return lexeme_index >= 0;
+    }
+
+    void add_tail(string new_tail, long nt_lexeme_index)
     {
         if (new_tail.length == 0) {
             if (validMatch) throw new LexanException("");
-            validMatch = true;
+            lexeme_index = nt_lexeme_index;
         } else if (new_tail[0] in tails) {
-            tails[new_tail[0]].add_tail(new_tail[1 .. $]);
+            tails[new_tail[0]].add_tail(new_tail[1 .. $], nt_lexeme_index);
         } else {
-            tails[new_tail[0]] = new LiteralMatchNode(new_tail[1 .. $]);
+            tails[new_tail[0]] = new LiteralMatchNode(new_tail[1 .. $], nt_lexeme_index);
         }
     }
 }
 
-class LiteralMatcher {
+class LiteralMatcher(H) {
 private:
-    LiteralMatchNode[char] literals;
+    LiteralLexeme!(H)[] lexemes;
+    LiteralMatchNode!(H)[char] literals;
 
 public:
-    void add_literal(string literal)
+    void add_literal(ref LiteralLexeme!(H) lexeme)
     {
-        try {
-            if (literal[0] in literals) {
-                literals[literal[0]].add_tail(literal[1 .. $]);
-            } else {
-                literals[literal[0]] = new LiteralMatchNode(literal[1 .. $]);
+        lexemes ~= lexeme;
+        auto literal = lexeme.pattern;
+        auto lexeme_index = cast(long) lexemes.length - 1;
+        if (literal[0] in literals) {
+            try {
+                literals[literal[0]].add_tail(literal[1 .. $], lexeme_index);
+            } catch (LexanException edata) {
+                throw new LexanDuplicateLiteral(literal);
             }
-        } catch (LexanException edata) {
-            throw new LexanDuplicateLiteral(literal);
+        } else {
+            literals[literal[0]] = new LiteralMatchNode!(H)(literal[1 .. $], lexeme_index);
         }
     }
 
-    string get_longest_match(string target)
+    LiteralLexeme!(H) get_longest_match(string target)
     {
-        auto lvm = 0;
+        LiteralLexeme!(H) lvm;
         auto lits = literals;
         for (auto index = 0; index < target.length && target[index] in lits; index++) {
             if (lits[target[index]].validMatch)
-                lvm = index + 1;
+                lvm = lexemes[lits[target[index]].lexeme_index];
             lits = lits[target[index]].tails;
         }
-        return target[0 .. lvm];
+        return lvm;
     }
 }
 
 unittest {
     import std.exception;
-    auto lm = new LiteralMatcher;
+    auto lm = new LiteralMatcher!int;
     auto test_strings = ["alpha", "beta", "gamma", "delta", "test", "tes", "tenth", "alpine", "gammon", "gamble"];
-    auto rubbish = "rubbish";
+    LiteralLexeme!int[] test_lexemes;
+    for (auto i = 0; i < test_strings.length; i++) {
+        test_lexemes ~= LiteralLexeme!int(i, test_strings[i]);
+    }
+    auto rubbish = "garbage";
     foreach(test_string; test_strings) {
-        assert(lm.get_longest_match(rubbish ~ test_string) == "");
-        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]) == "");
-        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]) == "");
-        assert(lm.get_longest_match(test_string ~ rubbish) == "");
+        assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
+        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).is_valid == false);
+        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).is_valid == false);
+        assert(lm.get_longest_match(test_string ~ rubbish).is_valid == false);
+    }
+    foreach(test_lexeme; test_lexemes) {
+        lm.add_literal(test_lexeme);
+    }
+    foreach(test_lexeme; test_lexemes) {
+        assertThrown!LexanDuplicateLiteral(lm.add_literal(test_lexeme));
     }
     foreach(test_string; test_strings) {
-        lm.add_literal(test_string);
+        assert(lm.get_longest_match(test_string).pattern == test_string);
     }
     foreach(test_string; test_strings) {
-        assertThrown!LexanDuplicateLiteral(lm.add_literal(test_string));
-    }
-    foreach(test_string; test_strings) {
-        assert(lm.get_longest_match(test_string) == test_string);
-    }
-    foreach(test_string; test_strings ~ []) {
-        assert(lm.get_longest_match(rubbish ~ test_string) == "");
-        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]) == test_string);
-        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]) == test_string);
-        assert(lm.get_longest_match(test_string ~ rubbish) == test_string);
+        assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
+        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).pattern == test_string);
+        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).pattern == test_string);
+        assert(lm.get_longest_match(test_string ~ rubbish).pattern == test_string);
     }
 }
 
@@ -231,8 +272,7 @@ public:
 }
 
 class LexicalAnalyserSpecification(H) {
-    private LiteralMatcher literalMatcher;
-    private TokenSpec!(H)[string] literalTokenSpecs;
+    private LiteralMatcher!(H) literalMatcher;
     private TokenSpec!(H)[] regexTokenSpecs;
     private Regex!(char)[] skipReList;
 
@@ -246,15 +286,14 @@ class LexicalAnalyserSpecification(H) {
         }
     }
     out {
-        assert((literalTokenSpecs.length + regexTokenSpecs.length) == tokenSpecs.length);
         assert(skipReList.length == skipPatterns.length);
     }
     body {
-        literalMatcher = new LiteralMatcher;
+        literalMatcher = new LiteralMatcher!(H);
         foreach (ts; tokenSpecs) {
             if (ts.matchType == MatchType.literal) {
-                literalTokenSpecs[ts.pattern] = ts;
-                literalMatcher.add_literal(ts.pattern);
+                auto lexeme = LiteralLexeme!(H)(ts.handle, ts.pattern);
+                literalMatcher.add_literal(lexeme);
             } else if (ts.matchType == MatchType.regularExpression) {
                 regexTokenSpecs ~= ts;
             }
@@ -340,10 +379,10 @@ class LexicalAnalyser(H) {
                 }
             }
 
-            if (llm.length && llm.length >= lrem.length) {
+            if (llm.is_valid && llm.length >= lrem.length) {
                 // if the matches are of equal length literal wins
                 incr_index_location(llm.length);
-                return new MatchResult!(H)(specification.literalTokenSpecs[llm].handle, llm, location);
+                return new MatchResult!(H)(llm.handle, llm.pattern, location);
             } else if (lrem.length) {
                 incr_index_location(lrem.length);
                 return new MatchResult!(H)(lremts.handle, lrem, location);
@@ -354,7 +393,7 @@ class LexicalAnalyser(H) {
                 main_loop: while (i < inputText.length) {
                     // Gobble characters until something makes sense
                     i++;
-                    if (specification.literalMatcher.get_longest_match(inputText[i .. $]).length > 0) break;
+                    if (specification.literalMatcher.get_longest_match(inputText[i .. $]).is_valid) break;
                     foreach (tspec; specification.regexTokenSpecs) {
                         if (match(inputText[i .. $], tspec.re)) break main_loop;
                     }
