@@ -98,7 +98,6 @@ class TokenSpec(H) {
         }
     }
 }
-
 unittest {
     auto ts = new TokenSpec!string("TEST", "\"test\"");
     assert(ts.handle == "TEST");
@@ -188,7 +187,6 @@ public:
         return lvm;
     }
 }
-
 unittest {
     import std.exception;
     auto lm = new LiteralMatcher!int;
@@ -239,6 +237,17 @@ struct CharLocation {
     }
 }
 
+class LexanInvalidToken: Exception {
+    string unexpected_text;
+    CharLocation location;
+
+    this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        string msg = format("Lexan: Invalid Iput: \"%s\" at %s.", utext, locn);
+        super(msg, file, line, next);
+    }
+}
+
 class MatchResult(H) {
 private:
     H _handle;
@@ -265,7 +274,7 @@ public:
     @property
     H handle()
     {
-        if (!_is_valid_match) throw new LexanException("");
+        if (!_is_valid_match) throw new LexanInvalidToken(_matchedText, location);
         return _handle;
     }
 
@@ -445,6 +454,7 @@ class LexicalAnalyser(H) {
 }
 
 unittest {
+    import std.exception;
     auto tslist = [
         new TokenSpec!string("IF", "\"if\""),
         new TokenSpec!string("IDENT", "[a-zA-Z]+[\\w_]*"),
@@ -472,6 +482,7 @@ unittest {
     assert(m.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
     m = la.front(); la.popFront();
     assert(!m.is_valid_match && m.matchedText == "9" && m.location.lineNumber == 3);
+    assertThrown!LexanInvalidToken(m.handle != "blah blah blah");
     m = la.front(); la.popFront();
     assert(!m.is_valid_match && m.matchedText == "$" && m.location.lineNumber == 3);
     m = la.front(); la.popFront();
