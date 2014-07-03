@@ -76,7 +76,7 @@ unittest {
     assert(drel.is_valid);
 }
 
-class LexanDuplicateLiteralPattern: Exception {
+class LexanDuplicateLiteralPattern: LexanException {
     string duplicate_pattern;
 
     this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
@@ -203,13 +203,31 @@ struct CharLocation {
     }
 }
 
-class LexanInvalidToken: Exception {
+class LexanInvalidToken: LexanException {
     string unexpected_text;
     CharLocation location;
 
     this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
     {
-        string msg = format("Lexan: Invalid Iput: \"%s\" at %s.", utext, locn);
+        unexpected_text = utext;
+        location = locn;
+        string msg = format("Invalid Iput: \"%s\" at %s.", utext, locn);
+        super(msg, file, line, next);
+    }
+}
+
+class LexanMultipleRegexMatches(H): LexanException {
+    string matched_text;
+    H[] handles;
+    CharLocation location;
+
+    this(HandleAndText!(H)[] hats, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        matched_text = hats[0].text;
+        foreach (hat; hats) {
+            handles ~= hat.handle;
+        }
+        string msg = format("Regexes : %s: all match \"%s\" at %s.", handles, matched_text, locn);
         super(msg, file, line, next);
     }
 }
@@ -283,7 +301,7 @@ struct HandleAndText(H) {
 interface LexicalAnalyserIfce(H) {
     size_t get_skippable_count(string text);
     LiteralLexeme!(H) get_longest_literal_match(string text);
-    HandleAndText!(H) get_longest_regex_match(string text);
+    HandleAndText!(H)[] get_longest_regex_match(string text);
     size_t distance_to_next_valid_input(string text);
     TokenInputRange!(H) input_token_range(string text, string label="");
     InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label="");
@@ -323,16 +341,20 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
         return literalMatcher.get_longest_match(text);
     }
 
-    HandleAndText!(H) get_longest_regex_match(string text)
+    HandleAndText!(H)[] get_longest_regex_match(string text)
     {
-        HandleAndText!(H) hat;
+        HandleAndText!(H)[] hat;
 
         foreach (tspec; regexTokenSpecs) {
             auto m = match(text, tspec.re);
             // TODO: check for two or more of the same length
             // and throw a wobbly
-            if (m && m.hit.length > hat.length) {
-                hat = HandleAndText!(H)(tspec.handle, m.hit);
+            if (m) {
+                if (hat.length == 0 || hat[0].length == m.hit.length) {
+                    hat ~= HandleAndText!(H)(tspec.handle, m.hit);
+                } else if (m.hit.length > hat.length) {
+                    hat = [HandleAndText!(H)(tspec.handle, m.hit)];
+                }
             }
         }
 
@@ -419,13 +441,16 @@ class TokenInputRange(H) {
 
             auto lrem = analyser.get_longest_regex_match(inputText[index_location.index .. $]);
 
-            if (llm.is_valid && llm.length >= lrem.length) {
+            if (llm.is_valid && (lrem.length == 0 || llm.length >= lrem[0].length)) {
                 // if the matches are of equal length literal wins
                 incr_index_location(llm.length);
                 return new Token!(H)(llm.handle, llm.pattern, location);
-            } else if (lrem.length) {
-                incr_index_location(lrem.length);
-                return new Token!(H)(lrem.handle, lrem.text, location);
+            } else if (lrem.length == 1) {
+                incr_index_location(lrem[0].length);
+                return new Token!(H)(lrem[0].handle, lrem[0].text, location);
+            } else if (lrem.length > 1) {
+                incr_index_location(lrem[0].length);
+                throw new LexanMultipleRegexMatches!(H)(lrem, location);
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
@@ -469,6 +494,7 @@ unittest {
         RegexLexeme!(string, Regex!char)("ACTION", regex(r"^(!\{(.|[\n\r])*?!\})")),
         RegexLexeme!(string, Regex!char)("PREDICATE", regex(r"^(\?\((.|[\n\r])*?\?\))")),
         RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
+        //RegexLexeme!(string, Regex!char)("MORSE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
     auto skipRelist = [
         regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
