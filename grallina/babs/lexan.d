@@ -76,43 +76,6 @@ unittest {
     assert(drel.is_valid);
 }
 
-enum MatchType {literal, regularExpression};
-
-class TokenSpec(H) {
-    immutable H handle;
-    immutable MatchType matchType;
-    union {
-        immutable string pattern;
-        Regex!(char) re;
-    }
-
-    this(H handle, string specdef)
-    {
-        this.handle = handle;
-        if (specdef[0] == '"' && specdef[$ - 1] == '"') {
-            matchType = MatchType.literal;
-            pattern = specdef[1 .. $ - 1];
-        } else {
-            matchType = MatchType.regularExpression;
-            re =  regex("^" ~ specdef);
-        }
-    }
-}
-unittest {
-    auto ts = new TokenSpec!string("TEST", "\"test\"");
-    assert(ts.handle == "TEST");
-    assert(ts.matchType == MatchType.literal);
-    assert(ts.pattern == "test");
-    ts = new TokenSpec!string("TESTRE", "[a-zA-Z]+");
-    assert(ts.handle == "TESTRE");
-    assert(ts.matchType == MatchType.regularExpression);
-    assert(!ts.re.empty);
-    auto ti = new TokenSpec!int(5, "[a-zA-Z]+");
-    assert(ti.handle == 5);
-    assert(ti.matchType == MatchType.regularExpression);
-    assert(!ti.re.empty);
-}
-
 class LexanDuplicateLiteralPattern: Exception {
     string duplicate_pattern;
 
@@ -317,36 +280,25 @@ struct HandleAndText(H) {
     }
 }
 
-class LexicalAnalyser(H) {
-    private LiteralMatcher!(H) literalMatcher;
-    private TokenSpec!(H)[] regexTokenSpecs;
-    private Regex!(char)[] skipReList;
+interface LexicalAnalyserIfce(H) {
+    size_t get_skippable_count(string text);
+    LiteralLexeme!(H) get_longest_literal_match(string text);
+    HandleAndText!(H) get_longest_regex_match(string text);
+    size_t distance_to_next_valid_input(string text);
+    TokenInputRange!(H) input_token_range(string text, string label="");
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label="");
+}
 
-    this(TokenSpec!(H)[] tokenSpecs, string[] skipPatterns = [])
-    in {
-        // Unique handles
-        foreach (i; 0 .. tokenSpecs.length) {
-            foreach (j; i + 1 .. tokenSpecs.length) {
-                assert(tokenSpecs[i].handle != tokenSpecs[j].handle);
-            }
-        }
-    }
-    out {
-        assert(skipReList.length == skipPatterns.length);
-    }
-    body {
-        LiteralLexeme!(H)[] lexemes;
-        foreach (ts; tokenSpecs) {
-            if (ts.matchType == MatchType.literal) {
-                lexemes ~= LiteralLexeme!(H)(ts.handle, ts.pattern);
-            } else if (ts.matchType == MatchType.regularExpression) {
-                regexTokenSpecs ~= ts;
-            }
-        }
-        literalMatcher = new LiteralMatcher!(H)(lexemes);
-        foreach (skipPat; skipPatterns) {
-            skipReList ~= regex("^" ~ skipPat);
-        }
+class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
+    private LiteralMatcher!(H) literalMatcher;
+    private RegexLexeme!(H, RE)[] regexTokenSpecs;
+    private RE[] skipReList;
+
+    this(ref LiteralLexeme!(H)[] lit_lexemes, ref RegexLexeme!(H, RE)[] re_lexemes, ref RE[] skipReList)
+    {
+        literalMatcher = new LiteralMatcher!(H)(lit_lexemes);
+        this.regexTokenSpecs = re_lexemes;
+        this.skipReList = skipReList;
     }
 
     size_t get_skippable_count(string text)
@@ -417,12 +369,12 @@ class LexicalAnalyser(H) {
 }
 
 class TokenInputRange(H) {
-    LexicalAnalyser!(H) analyser;
+    LexicalAnalyserIfce!(H) analyser;
     private string inputText;
     private CharLocation index_location;
     private Token!(H) currentMatch;
 
-    this (LexicalAnalyser!(H) analyser, string text, string label="")
+    this (LexicalAnalyserIfce!(H) analyser, string text, string label="")
     {
         this.analyser = analyser;
         index_location = CharLocation(0, 1, 1, label);
@@ -505,22 +457,25 @@ class TokenInputRange(H) {
 
 unittest {
     import std.exception;
-    auto tslist = [
-        new TokenSpec!string("IF", "\"if\""),
-        new TokenSpec!string("IDENT", "[a-zA-Z]+[\\w_]*"),
-        new TokenSpec!string("BTEXTL", r"&\{(.|[\n\r])*&\}"),
-        new TokenSpec!string("PRED", r"\?\{(.|[\n\r])*\?\}"),
-        new TokenSpec!string("LITERAL", "(\"\\S+\")"),
-        new TokenSpec!string("ACTION", r"(!\{(.|[\n\r])*?!\})"),
-        new TokenSpec!string("PREDICATE", r"(\?\((.|[\n\r])*?\?\))"),
-        new TokenSpec!string("CODE", r"(%\{(.|[\n\r])*?%\})"),
+    auto lit_lexemes = [
+        LiteralLexeme!string("IF", "if"),
+        LiteralLexeme!string("WHEN", "when"),
     ];
-    auto skiplist = [
-        r"(/\*(.|[\n\r])*?\*/)", // D multi line comment
-        r"(//[^\n\r]*)", // D EOL comment
-        r"(\s+)", // White space
+    auto re_lexemes = [
+        RegexLexeme!(string, Regex!char)("IDENT", regex("^[a-zA-Z]+[\\w_]*")),
+        RegexLexeme!(string, Regex!char)("BTEXTL", regex(r"^&\{(.|[\n\r])*&\}")),
+        RegexLexeme!(string, Regex!char)("PRED", regex(r"^\?\{(.|[\n\r])*\?\}")),
+        RegexLexeme!(string, Regex!char)("LITERAL", regex("^(\"\\S+\")")),
+        RegexLexeme!(string, Regex!char)("ACTION", regex(r"^(!\{(.|[\n\r])*?!\})")),
+        RegexLexeme!(string, Regex!char)("PREDICATE", regex(r"^(\?\((.|[\n\r])*?\?\))")),
+        RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
-    auto laspec = new LexicalAnalyser!string(tslist, skiplist);
+    auto skipRelist = [
+        regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
+        regex(r"^(//[^\n\r]*)"), // D EOL comment
+        regex(r"^(\s+)"), // White space
+    ];
+    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skipRelist);
     auto la = laspec.input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto m = la.front(); la.popFront();
     assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
@@ -582,17 +537,20 @@ and some included code %{
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
     assert(m.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
-    auto tilist = [
-        new TokenSpec!int(0, "\"if\""),
-        new TokenSpec!int(1, "[a-zA-Z]+[\\w_]*"),
-        new TokenSpec!int(2, r"&\{(.|[\n\r])*&\}"),
-        new TokenSpec!int(3, r"\?\{(.|[\n\r])*\?\}"),
-        new TokenSpec!int(4, "(\"\\S+\")"),
-        new TokenSpec!int(5, r"(!\{(.|[\n\r])*?!\})"),
-        new TokenSpec!int(6, r"(\?\((.|[\n\r])*?\?\))"),
-        new TokenSpec!int(7, r"(%\{(.|[\n\r])*?%\})"),
+    auto ilit_lexemes = [
+        LiteralLexeme!int(0, "if"),
+        LiteralLexeme!int(8, "when"),
     ];
-    auto ilaspec = new LexicalAnalyser!int(tilist, skiplist);
+    auto ire_lexemes = [
+        RegexLexeme!(int, Regex!char)(1, regex("^[a-zA-Z]+[\\w_]*")),
+        RegexLexeme!(int, Regex!char)(2, regex(r"^&\{(.|[\n\r])*&\}")),
+        RegexLexeme!(int, Regex!char)(3, regex(r"^\?\{(.|[\n\r])*\?\}")),
+        RegexLexeme!(int, Regex!char)(4, regex("^(\"\\S+\")")),
+        RegexLexeme!(int, Regex!char)(5, regex(r"^(!\{(.|[\n\r])*?!\})")),
+        RegexLexeme!(int, Regex!char)(6, regex(r"^(\?\((.|[\n\r])*?\?\))")),
+        RegexLexeme!(int, Regex!char)(7, regex(r"^(%\{(.|[\n\r])*?%\})")),
+    ];
+    auto ilaspec = new LexicalAnalyser!(int, Regex!char)(ilit_lexemes, ire_lexemes, skipRelist);
     auto ila = ilaspec.input_token_range("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto im = ila.front(); ila.popFront();
     assert(im.handle == 0 && im.matchedText == "if" && im.location.lineNumber == 1);
@@ -607,10 +565,10 @@ and some included code %{
 }
 
 class InjectableTokenInputRange(H) {
-    LexicalAnalyser!(H) analyser;
+    LexicalAnalyserIfce!(H) analyser;
     TokenInputRange!(H)[] token_range_stack;
 
-    this (LexicalAnalyser!(H) analyser, string text, string label)
+    this (LexicalAnalyserIfce!(H) analyser, string text, string label)
     {
         this.analyser = analyser;
         token_range_stack ~= analyser.input_token_range(text, label);
@@ -641,22 +599,25 @@ class InjectableTokenInputRange(H) {
     }
 }
 unittest {
-    auto tslist = [
-        new TokenSpec!string("IF", "\"if\""),
-        new TokenSpec!string("IDENT", "[a-zA-Z]+[\\w_]*"),
-        new TokenSpec!string("BTEXTL", r"&\{(.|[\n\r])*&\}"),
-        new TokenSpec!string("PRED", r"\?\{(.|[\n\r])*\?\}"),
-        new TokenSpec!string("LITERAL", "(\"\\S+\")"),
-        new TokenSpec!string("ACTION", r"(!\{(.|[\n\r])*?!\})"),
-        new TokenSpec!string("PREDICATE", r"(\?\((.|[\n\r])*?\?\))"),
-        new TokenSpec!string("CODE", r"(%\{(.|[\n\r])*?%\})"),
+    auto lit_lexemes = [
+        LiteralLexeme!string("IF", "if"),
+        LiteralLexeme!string("WHEN", "when"),
     ];
-    auto skiplist = [
-        r"(/\*(.|[\n\r])*?\*/)", // D multi line comment
-        r"(//[^\n\r]*)", // D EOL comment
-        r"(\s+)", // White space
+    auto re_lexemes = [
+        RegexLexeme!(string, Regex!char)("IDENT", regex("^[a-zA-Z]+[\\w_]*")),
+        RegexLexeme!(string, Regex!char)("BTEXTL", regex(r"^&\{(.|[\n\r])*&\}")),
+        RegexLexeme!(string, Regex!char)("PRED", regex(r"^\?\{(.|[\n\r])*\?\}")),
+        RegexLexeme!(string, Regex!char)("LITERAL", regex("^(\"\\S+\")")),
+        RegexLexeme!(string, Regex!char)("ACTION", regex(r"^(!\{(.|[\n\r])*?!\})")),
+        RegexLexeme!(string, Regex!char)("PREDICATE", regex(r"^(\?\((.|[\n\r])*?\?\))")),
+        RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
-    auto laspec = new LexicalAnalyser!string(tslist, skiplist);
+    auto skipRelist = [
+        regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
+        regex(r"^(//[^\n\r]*)"), // D EOL comment
+        regex(r"^(\s+)"), // White space
+    ];
+    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skipRelist);
     auto ila = laspec.injectable_input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
     auto m = ila.front(); ila.popFront();
     assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
