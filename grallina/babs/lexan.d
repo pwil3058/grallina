@@ -113,9 +113,12 @@ unittest {
     assert(!ti.re.empty);
 }
 
-class LexanDuplicateLiteral: Exception {
+class LexanDuplicateLiteralPattern: Exception {
+    string duplicate_pattern;
+
     this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
     {
+        duplicate_pattern = name;
         super(format("Duplicated literal specification: \"%s\".", name), file, line, next);
     }
 }
@@ -134,16 +137,10 @@ private class LiteralMatchNode(H) {
         }
     }
 
-    @property
-    bool validMatch()
-    {
-        return lexeme_index >= 0;
-    }
-
     void add_tail(string new_tail, long nt_lexeme_index)
     {
         if (new_tail.length == 0) {
-            if (validMatch) throw new LexanException("");
+            if (lexeme_index >= 0) throw new LexanException("");
             lexeme_index = nt_lexeme_index;
         } else if (new_tail[0] in tails) {
             tails[new_tail[0]].add_tail(new_tail[1 .. $], nt_lexeme_index);
@@ -159,19 +156,21 @@ private:
     LiteralMatchNode!(H)[char] literals;
 
 public:
-    void add_literal(ref LiteralLexeme!(H) lexeme)
+    this(ref LiteralLexeme!(H)[] lexeme_list)
     {
-        lexemes ~= lexeme;
-        auto literal = lexeme.pattern;
-        auto lexeme_index = cast(long) lexemes.length - 1;
-        if (literal[0] in literals) {
-            try {
-                literals[literal[0]].add_tail(literal[1 .. $], lexeme_index);
-            } catch (LexanException edata) {
-                throw new LexanDuplicateLiteral(literal);
+        lexemes = lexeme_list;
+        for (auto i = 0; i < lexemes.length; i++) {
+            auto lexeme = lexemes[i];
+            auto literal = lexeme.pattern;
+            if (literal[0] in literals) {
+                try {
+                    literals[literal[0]].add_tail(literal[1 .. $], i);
+                } catch (LexanException edata) {
+                    throw new LexanDuplicateLiteralPattern(literal);
+                }
+            } else {
+                literals[literal[0]] = new LiteralMatchNode!(H)(literal[1 .. $], i);
             }
-        } else {
-            literals[literal[0]] = new LiteralMatchNode!(H)(literal[1 .. $], lexeme_index);
         }
     }
 
@@ -180,7 +179,7 @@ public:
         LiteralLexeme!(H) lvm;
         auto lits = literals;
         for (auto index = 0; index < target.length && target[index] in lits; index++) {
-            if (lits[target[index]].validMatch)
+            if (lits[target[index]].lexeme_index >= 0)
                 lvm = lexemes[lits[target[index]].lexeme_index];
             lits = lits[target[index]].tails;
         }
@@ -189,33 +188,37 @@ public:
 }
 unittest {
     import std.exception;
-    auto lm = new LiteralMatcher!int;
     auto test_strings = ["alpha", "beta", "gamma", "delta", "test", "tes", "tenth", "alpine", "gammon", "gamble"];
     LiteralLexeme!int[] test_lexemes;
     for (auto i = 0; i < test_strings.length; i++) {
         test_lexemes ~= LiteralLexeme!int(i, test_strings[i]);
     }
     auto rubbish = "garbage";
+    auto lm = new LiteralMatcher!int(test_lexemes);
     foreach(test_string; test_strings) {
+        assert(lm.get_longest_match(test_string).is_valid);
         assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
-        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).is_valid == false);
-        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).is_valid == false);
-        assert(lm.get_longest_match(test_string ~ rubbish).is_valid == false);
-    }
-    foreach(test_lexeme; test_lexemes) {
-        lm.add_literal(test_lexeme);
-    }
-    foreach(test_lexeme; test_lexemes) {
-        assertThrown!LexanDuplicateLiteral(lm.add_literal(test_lexeme));
+        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).is_valid == true);
+        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).is_valid == true);
+        assert(lm.get_longest_match(test_string ~ rubbish).is_valid == true);
     }
     foreach(test_string; test_strings) {
         assert(lm.get_longest_match(test_string).pattern == test_string);
-    }
-    foreach(test_string; test_strings) {
         assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
         assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).pattern == test_string);
         assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).pattern == test_string);
         assert(lm.get_longest_match(test_string ~ rubbish).pattern == test_string);
+    }
+    auto bad_strings = test_strings ~ "gamma";
+    LiteralLexeme!int[] bad_lexemes;
+    for (auto i = 0; i < bad_strings.length; i++) {
+        bad_lexemes ~= LiteralLexeme!int(i, bad_strings[i]);
+    }
+    try {
+        auto bad_lm = new LiteralMatcher!int(bad_lexemes);
+        assert(false, "should blow up before here!");
+    } catch (LexanDuplicateLiteralPattern edata) {
+        assert(edata.duplicate_pattern == "gamma");
     }
 }
 
@@ -304,7 +307,7 @@ class LexicalAnalyser(H) {
 
     this(TokenSpec!(H)[] tokenSpecs, string[] skipPatterns = [])
     in {
-        // Unique handles and out will check unique patterns
+        // Unique handles
         foreach (i; 0 .. tokenSpecs.length) {
             foreach (j; i + 1 .. tokenSpecs.length) {
                 assert(tokenSpecs[i].handle != tokenSpecs[j].handle);
@@ -315,15 +318,15 @@ class LexicalAnalyser(H) {
         assert(skipReList.length == skipPatterns.length);
     }
     body {
-        literalMatcher = new LiteralMatcher!(H);
+        LiteralLexeme!(H)[] lexemes;
         foreach (ts; tokenSpecs) {
             if (ts.matchType == MatchType.literal) {
-                auto lexeme = LiteralLexeme!(H)(ts.handle, ts.pattern);
-                literalMatcher.add_literal(lexeme);
+                lexemes ~= LiteralLexeme!(H)(ts.handle, ts.pattern);
             } else if (ts.matchType == MatchType.regularExpression) {
                 regexTokenSpecs ~= ts;
             }
         }
+        literalMatcher = new LiteralMatcher!(H)(lexemes);
         foreach (skipPat; skipPatterns) {
             skipReList ~= regex("^" ~ skipPat);
         }
