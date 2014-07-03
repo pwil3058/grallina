@@ -297,7 +297,7 @@ public:
     }
 }
 
-class LexicalAnalyserSpecification(H) {
+class LexicalAnalyser(H) {
     private LiteralMatcher!(H) literalMatcher;
     private TokenSpec!(H)[] regexTokenSpecs;
     private Regex!(char)[] skipReList;
@@ -329,24 +329,24 @@ class LexicalAnalyserSpecification(H) {
         }
     }
 
-    LexicalAnalyser!(H) new_analyser(string text, string label="")
+    TokenInputRange!(H) input_token_range(string text, string label="")
     {
-        return new LexicalAnalyser!(H)(this, text, label);
+        return new TokenInputRange!(H)(this, text, label);
     }
 
-    InjectableLexicalAnalyser!(H) new_injectable_analyser(string text, string label="")
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label="")
     {
-        return new InjectableLexicalAnalyser!(H)(this, text, label);
+        return new InjectableTokenInputRange!(H)(this, text, label);
     }
 }
 
-class LexicalAnalyser(H) {
-    LexicalAnalyserSpecification!(H) specification;
+class TokenInputRange(H) {
+    LexicalAnalyser!(H) specification;
     private string inputText;
     private CharLocation index_location;
     private Token!(H) currentMatch;
 
-    this (LexicalAnalyserSpecification!(H) specification, string text, string label="")
+    this (LexicalAnalyser!(H) specification, string text, string label="")
     {
         this.specification = specification;
         index_location = CharLocation(0, 1, 1, label);
@@ -470,8 +470,8 @@ unittest {
         r"(//[^\n\r]*)", // D EOL comment
         r"(\s+)", // White space
     ];
-    auto laspec = new LexicalAnalyserSpecification!string(tslist, skiplist);
-    auto la = laspec.new_analyser("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
+    auto laspec = new LexicalAnalyser!string(tslist, skiplist);
+    auto la = laspec.input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto m = la.front(); la.popFront();
     assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
     m = la.front(); la.popFront();
@@ -496,7 +496,7 @@ unittest {
     m = la.front(); la.popFront();
     assert(m.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
     assert(la.empty);
-    la = laspec.new_analyser("
+    la = laspec.input_token_range("
     some identifiers
 // a single line comment with \"quote\"
 some more identifiers.
@@ -542,8 +542,8 @@ and some included code %{
         new TokenSpec!int(6, r"(\?\((.|[\n\r])*?\?\))"),
         new TokenSpec!int(7, r"(%\{(.|[\n\r])*?%\})"),
     ];
-    auto ilaspec = new LexicalAnalyserSpecification!int(tilist, skiplist);
-    auto ila = ilaspec.new_analyser("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
+    auto ilaspec = new LexicalAnalyser!int(tilist, skiplist);
+    auto ila = ilaspec.input_token_range("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto im = ila.front(); ila.popFront();
     assert(im.handle == 0 && im.matchedText == "if" && im.location.lineNumber == 1);
     im = ila.front(); ila.popFront();
@@ -556,19 +556,19 @@ and some included code %{
     assert(!im.is_valid_match && im.matchedText == "%%" && im.location.lineNumber == 2);
 }
 
-class InjectableLexicalAnalyser(H) {
-    LexicalAnalyserSpecification!(H) specification;
-    LexicalAnalyser!(H)[] lexan_stack;
+class InjectableTokenInputRange(H) {
+    LexicalAnalyser!(H) specification;
+    TokenInputRange!(H)[] lexan_stack;
 
-    this (LexicalAnalyserSpecification!(H) specification, string text, string label)
+    this (LexicalAnalyser!(H) specification, string text, string label)
     {
         this.specification = specification;
-        lexan_stack ~= specification.new_analyser(text, label);
+        lexan_stack ~= specification.input_token_range(text, label);
     }
 
     void inject(string text, string label)
     {
-        lexan_stack ~= specification.new_analyser(text, label);
+        lexan_stack ~= specification.input_token_range(text, label);
     }
 
     @property
@@ -606,8 +606,8 @@ unittest {
         r"(//[^\n\r]*)", // D EOL comment
         r"(\s+)", // White space
     ];
-    auto laspec = new LexicalAnalyserSpecification!string(tslist, skiplist);
-    auto ila = laspec.new_injectable_analyser("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
+    auto laspec = new LexicalAnalyser!string(tslist, skiplist);
+    auto ila = laspec.injectable_input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
     auto m = ila.front(); ila.popFront();
     assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
     m = ila.front(); ila.popFront();
