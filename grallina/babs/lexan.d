@@ -248,7 +248,7 @@ class LexanInvalidToken: Exception {
     }
 }
 
-class MatchResult(H) {
+class Token(H) {
 private:
     H _handle;
     string _matchedText;
@@ -344,7 +344,7 @@ class LexicalAnalyser(H) {
     LexicalAnalyserSpecification!(H) specification;
     private string inputText;
     private CharLocation index_location;
-    private MatchResult!(H) currentMatch;
+    private Token!(H) currentMatch;
 
     this (LexicalAnalyserSpecification!(H) specification, string text, string label="")
     {
@@ -377,7 +377,7 @@ class LexicalAnalyser(H) {
         index_location.index = next_index;
     }
 
-    private MatchResult!(H) advance()
+    private Token!(H) advance()
     {
         mainloop: while (index_location.index < inputText.length) {
             // skips have highest priority
@@ -408,10 +408,10 @@ class LexicalAnalyser(H) {
             if (llm.is_valid && llm.length >= lrem.length) {
                 // if the matches are of equal length literal wins
                 incr_index_location(llm.length);
-                return new MatchResult!(H)(llm.handle, llm.pattern, location);
+                return new Token!(H)(llm.handle, llm.pattern, location);
             } else if (lrem.length) {
                 incr_index_location(lrem.length);
-                return new MatchResult!(H)(lremts.handle, lrem, location);
+                return new Token!(H)(lremts.handle, lrem, location);
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
@@ -428,7 +428,7 @@ class LexicalAnalyser(H) {
                     }
                 }
                 incr_index_location(i - start);
-                return new MatchResult!(H)(inputText[start .. index_location.index], location);
+                return new Token!(H)(inputText[start .. index_location.index], location);
             }
         }
 
@@ -442,7 +442,7 @@ class LexicalAnalyser(H) {
     }
 
     @property
-    MatchResult!(H) front()
+    Token!(H) front()
     {
         return currentMatch;
     }
@@ -578,7 +578,7 @@ class InjectableLexicalAnalyser(H) {
     }
 
     @property
-    MatchResult!(H) front()
+    Token!(H) front()
     {
         if (lexan_stack.length == 0) return null;
         return lexan_stack[$ - 1].currentMatch;
