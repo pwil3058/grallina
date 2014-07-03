@@ -300,6 +300,23 @@ public:
     }
 }
 
+struct HandleAndText(H) {
+    H handle;
+    string text;
+
+    @property
+    size_t length()
+    {
+        return text.length;
+    }
+
+    @property
+    bool is_valid()
+    {
+        return text.length > 0;
+    }
+}
+
 class LexicalAnalyser(H) {
     private LiteralMatcher!(H) literalMatcher;
     private TokenSpec!(H)[] regexTokenSpecs;
@@ -332,6 +349,62 @@ class LexicalAnalyser(H) {
         }
     }
 
+    size_t get_skippable_count(string text)
+    {
+        size_t index = 0;
+        while (index < text.length) {
+            auto skips = 0;
+            foreach (skipRe; skipReList) {
+                auto m = match(text[index .. $], skipRe);
+                if (!m.empty) {
+                    index += m.hit.length;
+                    skips++;
+                }
+            }
+            if (skips == 0) break;
+        }
+        return index;
+    }
+
+    LiteralLexeme!(H) get_longest_literal_match(string text)
+    {
+        return literalMatcher.get_longest_match(text);
+    }
+
+    HandleAndText!(H) get_longest_regex_match(string text)
+    {
+        HandleAndText!(H) hat;
+
+        foreach (tspec; regexTokenSpecs) {
+            auto m = match(text, tspec.re);
+            // TODO: check for two or more of the same length
+            // and throw a wobbly
+            if (m && m.hit.length > hat.length) {
+                hat = HandleAndText!(H)(tspec.handle, m.hit);
+            }
+        }
+
+        return hat;
+    }
+
+    size_t distance_to_next_valid_input(string text)
+    {
+        size_t index = 0;
+        mainloop: while (index < text.length) {
+            // Assume that the front of the text is invalid
+            // TODO: put in precondition to that effect
+            index++;
+            if (literalMatcher.get_longest_match(text[index .. $]).is_valid) break;
+            foreach (tspec; regexTokenSpecs) {
+                if (match(text[index .. $], tspec.re)) break mainloop;
+            }
+            foreach (skipRe; skipReList) {
+                if (match(text[index .. $], skipRe)) break mainloop;
+            }
+        }
+        return index;
+    }
+
     TokenInputRange!(H) input_token_range(string text, string label="")
     {
         return new TokenInputRange!(H)(this, text, label);
@@ -344,14 +417,14 @@ class LexicalAnalyser(H) {
 }
 
 class TokenInputRange(H) {
-    LexicalAnalyser!(H) specification;
+    LexicalAnalyser!(H) analyser;
     private string inputText;
     private CharLocation index_location;
     private Token!(H) currentMatch;
 
-    this (LexicalAnalyser!(H) specification, string text, string label="")
+    this (LexicalAnalyser!(H) analyser, string text, string label="")
     {
-        this.specification = specification;
+        this.analyser = analyser;
         index_location = CharLocation(0, 1, 1, label);
         inputText = text;
         currentMatch = advance();
@@ -382,31 +455,17 @@ class TokenInputRange(H) {
 
     private Token!(H) advance()
     {
-        mainloop: while (index_location.index < inputText.length) {
+        while (index_location.index < inputText.length) {
             // skips have highest priority
-            foreach (skipRe; specification.skipReList) {
-                auto m = match(inputText[index_location.index .. $], skipRe);
-                if (!m.empty) {
-                    incr_index_location(m.hit.length);
-                    continue mainloop;
-                }
-            }
+            incr_index_location(analyser.get_skippable_count(inputText[index_location.index .. $]));
 
             // The reported location is for the first character of the match
             auto location = index_location;
 
             // Find longest match found by literal match or regex
-            auto llm = specification.literalMatcher.get_longest_match(inputText[index_location.index .. $]);
+            auto llm = analyser.get_longest_literal_match(inputText[index_location.index .. $]);
 
-            auto lrem = "";
-            TokenSpec!(H) lremts;
-            foreach (tspec; specification.regexTokenSpecs) {
-                auto m = match(inputText[index_location.index .. $], tspec.re);
-                if (m && m.hit.length > lrem.length) {
-                    lrem = m.hit;
-                    lremts = tspec;
-                }
-            }
+            auto lrem = analyser.get_longest_regex_match(inputText[index_location.index .. $]);
 
             if (llm.is_valid && llm.length >= lrem.length) {
                 // if the matches are of equal length literal wins
@@ -414,23 +473,11 @@ class TokenInputRange(H) {
                 return new Token!(H)(llm.handle, llm.pattern, location);
             } else if (lrem.length) {
                 incr_index_location(lrem.length);
-                return new Token!(H)(lremts.handle, lrem, location);
+                return new Token!(H)(lrem.handle, lrem.text, location);
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
-                auto i = start;
-                main_loop: while (i < inputText.length) {
-                    // Gobble characters until something makes sense
-                    i++;
-                    if (specification.literalMatcher.get_longest_match(inputText[i .. $]).is_valid) break;
-                    foreach (tspec; specification.regexTokenSpecs) {
-                        if (match(inputText[i .. $], tspec.re)) break main_loop;
-                    }
-                    foreach (skipRe; specification.skipReList) {
-                        if (match(inputText[i .. $], skipRe)) break main_loop;
-                    }
-                }
-                incr_index_location(i - start);
+                incr_index_location(analyser.distance_to_next_valid_input(inputText[index_location.index .. $]));
                 return new Token!(H)(inputText[start .. index_location.index], location);
             }
         }
@@ -560,37 +607,37 @@ and some included code %{
 }
 
 class InjectableTokenInputRange(H) {
-    LexicalAnalyser!(H) specification;
-    TokenInputRange!(H)[] lexan_stack;
+    LexicalAnalyser!(H) analyser;
+    TokenInputRange!(H)[] token_range_stack;
 
-    this (LexicalAnalyser!(H) specification, string text, string label)
+    this (LexicalAnalyser!(H) analyser, string text, string label)
     {
-        this.specification = specification;
-        lexan_stack ~= specification.input_token_range(text, label);
+        this.analyser = analyser;
+        token_range_stack ~= analyser.input_token_range(text, label);
     }
 
     void inject(string text, string label)
     {
-        lexan_stack ~= specification.input_token_range(text, label);
+        token_range_stack ~= analyser.input_token_range(text, label);
     }
 
     @property
     bool empty()
     {
-        return lexan_stack.length == 0;
+        return token_range_stack.length == 0;
     }
 
     @property
     Token!(H) front()
     {
-        if (lexan_stack.length == 0) return null;
-        return lexan_stack[$ - 1].currentMatch;
+        if (token_range_stack.length == 0) return null;
+        return token_range_stack[$ - 1].currentMatch;
     }
 
     void popFront()
     {
-        lexan_stack[$ - 1].popFront();
-        while (lexan_stack.length > 0 && lexan_stack[$ - 1].empty) lexan_stack.length--;
+        token_range_stack[$ - 1].popFront();
+        while (token_range_stack.length > 0 && token_range_stack[$ - 1].empty) token_range_stack.length--;
     }
 }
 unittest {
