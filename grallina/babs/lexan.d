@@ -32,6 +32,45 @@ class LexanException: Exception {
     }
 }
 
+class LexanDuplicateLiteralPattern: LexanException {
+    string duplicate_pattern;
+
+    this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        duplicate_pattern = name;
+        super(format("Duplicated literal specification: \"%s\".", name), file, line, next);
+    }
+}
+
+class LexanInvalidToken: LexanException {
+    string unexpected_text;
+    CharLocation location;
+
+    this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        unexpected_text = utext;
+        location = locn;
+        string msg = format("Invalid Iput: \"%s\" at %s.", utext, locn);
+        super(msg, file, line, next);
+    }
+}
+
+class LexanMultipleRegexMatches(H): LexanException {
+    string matched_text;
+    H[] handles;
+    CharLocation location;
+
+    this(HandleAndText!(H)[] hats, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        matched_text = hats[0].text;
+        foreach (hat; hats) {
+            handles ~= hat.handle;
+        }
+        string msg = format("Regexes : %s: all match \"%s\" at %s.", handles, matched_text, locn);
+        super(msg, file, line, next);
+    }
+}
+
 struct LiteralLexeme(H) {
     H handle;
     string pattern;
@@ -74,16 +113,6 @@ unittest {
     assert(!edrel.is_valid);
     auto drel =  RegexLexeme!(int, Regex!char)(12, regex("^twelve"));
     assert(drel.is_valid);
-}
-
-class LexanDuplicateLiteralPattern: LexanException {
-    string duplicate_pattern;
-
-    this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        duplicate_pattern = name;
-        super(format("Duplicated literal specification: \"%s\".", name), file, line, next);
-    }
 }
 
 private class LiteralMatchNode(H) {
@@ -200,35 +229,6 @@ struct CharLocation {
         } else {
             return format("%s(%s)", lineNumber, offset);
         }
-    }
-}
-
-class LexanInvalidToken: LexanException {
-    string unexpected_text;
-    CharLocation location;
-
-    this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        unexpected_text = utext;
-        location = locn;
-        string msg = format("Invalid Iput: \"%s\" at %s.", utext, locn);
-        super(msg, file, line, next);
-    }
-}
-
-class LexanMultipleRegexMatches(H): LexanException {
-    string matched_text;
-    H[] handles;
-    CharLocation location;
-
-    this(HandleAndText!(H)[] hats, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        matched_text = hats[0].text;
-        foreach (hat; hats) {
-            handles ~= hat.handle;
-        }
-        string msg = format("Regexes : %s: all match \"%s\" at %s.", handles, matched_text, locn);
-        super(msg, file, line, next);
     }
 }
 
