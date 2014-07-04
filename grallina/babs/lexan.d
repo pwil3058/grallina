@@ -494,7 +494,7 @@ unittest {
         RegexLexeme!(string, Regex!char)("ACTION", regex(r"^(!\{(.|[\n\r])*?!\})")),
         RegexLexeme!(string, Regex!char)("PREDICATE", regex(r"^(\?\((.|[\n\r])*?\?\))")),
         RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
-        //RegexLexeme!(string, Regex!char)("MORSE", regex(r"^(%\{(.|[\n\r])*?%\})")),
+        RegexLexeme!(string, Regex!char)("MORSE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
     auto skipRelist = [
         regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
@@ -560,9 +560,14 @@ and some included code %{
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
     assert(m.handle == "PREDICATE" && m.matchedText == "?( a boolean expression ?)" && m.location.lineNumber == 11);
-    m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
-    m = la.front(); la.popFront();
-    assert(m.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
+    try {
+        m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
+        m = la.front(); la.popFront();
+        assert(m.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
+        assert(false, "Blows up before here!");
+    } catch (LexanMultipleRegexMatches!(string) edata) {
+        assert(edata.handles == ["CODE", "MORSE"]);
+    }
     auto ilit_lexemes = [
         LiteralLexeme!int(0, "if"),
         LiteralLexeme!int(8, "when"),
