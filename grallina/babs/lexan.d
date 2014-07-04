@@ -94,7 +94,7 @@ unittest {
     assert(ll.is_valid);
 }
 
-struct RegexLexeme(H, RE) {
+private struct RegexLexeme(H, RE) {
     H handle;
     RE re;
 
@@ -104,6 +104,23 @@ struct RegexLexeme(H, RE) {
         return !re.empty;
     }
 }
+
+template CtRegexLexeme(H, H handle, string script) {
+    static  if (script[0] == '^') {
+        enum CtRegexLexeme = RegexLexeme!(H, StaticRegex!char)(handle, ctRegex!(script));
+    } else {
+        enum CtRegexLexeme = RegexLexeme!(H, StaticRegex!char)(handle, ctRegex!("^" ~ script));
+    }
+}
+
+template EtRegexLexeme(H, H handle, string script) if (script[0] == '^') {
+    static  if (script[0] == '^') {
+        enum EtRegexLexeme = RegexLexeme!(H, Regex!char)(handle, regex(script));
+    } else {
+        enum EtRegexLexeme = RegexLexeme!(H, Regex!char)(handle, regex("^" ~ script));
+    }
+}
+
 unittest {
     RegexLexeme!(int, StaticRegex!char) erel;
     assert(!erel.is_valid);
@@ -113,6 +130,7 @@ unittest {
     assert(!edrel.is_valid);
     auto drel =  RegexLexeme!(int, Regex!char)(12, regex("^twelve"));
     assert(drel.is_valid);
+    auto tdrel = EtRegexLexeme!(int, 13, "^twelve");
 }
 
 private class LiteralMatchNode(H) {
