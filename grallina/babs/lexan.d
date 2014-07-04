@@ -313,7 +313,25 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
     private RE[] skipReList;
 
     this(ref LiteralLexeme!(H)[] lit_lexemes, ref RegexLexeme!(H, RE)[] re_lexemes, ref RE[] skipReList)
-    {
+    in {
+        // Make sure handles are unique
+        for (auto i = 0; i < (lit_lexemes.length - 1); i++) {
+            for (auto j = i + 1; j < lit_lexemes.length; j++) {
+                assert(lit_lexemes[i].handle != lit_lexemes[j].handle);
+            }
+        }
+        for (auto i = 0; i < (re_lexemes.length - 1); i++) {
+            for (auto j = i + 1; j < re_lexemes.length; j++) {
+                assert(re_lexemes[i].handle != re_lexemes[j].handle);
+            }
+        }
+        for (auto i = 0; i < lit_lexemes.length; i++) {
+            for (auto j = 0; j < re_lexemes.length; j++) {
+                assert(lit_lexemes[i].handle != re_lexemes[j].handle);
+            }
+        }
+    }
+    body {
         literalMatcher = new LiteralMatcher!(H)(lit_lexemes);
         this.regexTokenSpecs = re_lexemes;
         this.skipReList = skipReList;
