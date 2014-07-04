@@ -37,11 +37,15 @@ static auto start_tag_literals = [
     LiteralLexeme!Handle(Handle.EQUALS, "=")
 ];
 
-static auto document_res = [
-    CtRegexLexeme!(Handle, Handle.START_TAG, r"<[^><]*[^>/]>"),
-    CtRegexLexeme!(Handle, Handle.END_TAG, r"</[^><]+>"),
-    CtRegexLexeme!(Handle, Handle.EMPTY_TAG, r"<[^><]+/>"),
-];
+alias EtRegexLexeme REL;
+static RegexLexeme!(Handle, Regex!char)[] document_res;
+static this() {
+    document_res = [
+        REL!(Handle, Handle.START_TAG, r"<[^><]*[^>/]>"),
+        REL!(Handle, Handle.END_TAG, r"</[^><]+>"),
+        REL!(Handle, Handle.EMPTY_TAG, r"<[^><]+/>"),
+    ];
+}
 unittest {
     assert(!match(r"<>", document_res[0].re));
     assert(!match(r"<<a>", document_res[0].re));

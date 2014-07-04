@@ -94,7 +94,7 @@ unittest {
     assert(ll.is_valid);
 }
 
-private struct RegexLexeme(H, RE) {
+struct RegexLexeme(H, RE) {
     H handle;
     RE re;
 
@@ -113,7 +113,7 @@ template CtRegexLexeme(H, H handle, string script) {
     }
 }
 
-template EtRegexLexeme(H, H handle, string script) if (script[0] == '^') {
+template EtRegexLexeme(H, H handle, string script) {
     static  if (script[0] == '^') {
         enum EtRegexLexeme = RegexLexeme!(H, Regex!char)(handle, regex(script));
     } else {
