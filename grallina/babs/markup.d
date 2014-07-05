@@ -28,7 +28,7 @@ import grallina.babs.lexan;
 enum Handle {
     START_TAG,
     END_TAG,
-    EMPTY_TAG,
+    START_END_TAG,
     NAME,
     EQUALS,
 }
@@ -37,13 +37,22 @@ static auto start_tag_literals = [
     LiteralLexeme!Handle(Handle.EQUALS, "=")
 ];
 
+template XMLName() {
+    enum XMLName = "[_a-zA-Z][-_a-zA-z0-9.]*";
+}
+
+template AnythingButLtGt() {
+    enum AnythingButLtGt = `(?:(?:[^><'"]+)|(?:(?:'[^']*')|(?:"[^"]*"))+)`;
+}
+
+// TODO: convert to ctRegex when it stops crashing all the time
 alias EtRegexLexeme REL;
 static RegexLexeme!(Handle, Regex!char)[] document_res;
 static this() {
     document_res = [
-        REL!(Handle, Handle.START_TAG, r"<[^><]*[^>/]>"),
-        REL!(Handle, Handle.END_TAG, r"</[^><]+>"),
-        REL!(Handle, Handle.EMPTY_TAG, r"<[^><]+/>"),
+        REL!(Handle, Handle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*[^>/]>"),
+        REL!(Handle, Handle.END_TAG, "</" ~ XMLName!() ~ ">"),
+        REL!(Handle, Handle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
     ];
 }
 unittest {
@@ -51,10 +60,13 @@ unittest {
     assert(!match(r"<<a>", document_res[0].re));
     assert(match(r"<a>>", document_res[0].re).hit == r"<a>");
     assert(!match(r"<a/>", document_res[0].re));
+    assert(match(r"<a '>' >", document_res[0].re).hit == "<a '>' >");
     assert(match(r"</a>>>>>", document_res[1].re).hit == r"</a>");
+    assert(match(r"</_a-8.a>>>>>", document_res[1].re).hit == r"</_a-8.a>");
     assert(!match(r"<</a>", document_res[1].re));
     assert(!match(r"</>", document_res[1].re));
     assert(!match(r"<a/>", document_res[1].re));
-    assert(!match(r"</>", document_res[2].re));
+    assert(match(r"</>>>>", document_res[2].re).hit == "</>");
     assert(match(r"<a/>>>>", document_res[2].re).hit == r"<a/>");
+    assert(match(r"<a '>' />>>>", document_res[2].re).hit == r"<a '>' />");
 }
