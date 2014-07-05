@@ -31,7 +31,16 @@ enum Handle {
     START_END_TAG,
     NAME,
     EQUALS,
+    AMPERSAND,
+    LESS_THAN,
+    GREATER_THAN,
 }
+
+static auto document_literals = [
+    LiteralLexeme!Handle(Handle.AMPERSAND, "&amp;"),
+    LiteralLexeme!Handle(Handle.LESS_THAN, "&lt;"),
+    LiteralLexeme!Handle(Handle.GREATER_THAN, "&gt;")
+];
 
 static auto start_tag_literals = [
     LiteralLexeme!Handle(Handle.EQUALS, "=")
@@ -41,32 +50,79 @@ template XMLName() {
     enum XMLName = "[_a-zA-Z][-_a-zA-z0-9.]*";
 }
 
+template SQString() {
+    enum SQString = "'[^']*'";
+}
+
+template DQString() {
+    enum DQString = `"[^"]*"`;
+}
+
+template QString() {
+    enum QString = "(" ~ SQString!() ~ ")|(" ~ DQString!() ~ ")";
+}
+
 template AnythingButLtGt() {
-    enum AnythingButLtGt = `(?:(?:[^><'"]+)|(?:(?:'[^']*')|(?:"[^"]*"))+)`;
+    enum AnythingButLtGt = `(?:(?:[^<>'"/]*)|(?:` ~ QString!() ~ ")*)";
 }
 
 // TODO: convert to ctRegex when it stops crashing all the time
 alias EtRegexLexeme REL;
 static RegexLexeme!(Handle, Regex!char)[] document_res;
+static Regex!(char)[] document_skips;
 static this() {
     document_res = [
-        REL!(Handle, Handle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*[^>/]>"),
-        REL!(Handle, Handle.END_TAG, "</" ~ XMLName!() ~ ">"),
+        REL!(Handle, Handle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*>"),
+        REL!(Handle, Handle.END_TAG, "</(" ~ XMLName!() ~ ")>"),
         REL!(Handle, Handle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
     ];
 }
 unittest {
-    assert(!match(r"<>", document_res[0].re));
-    assert(!match(r"<<a>", document_res[0].re));
-    assert(match(r"<a>>", document_res[0].re).hit == r"<a>");
-    assert(!match(r"<a/>", document_res[0].re));
-    assert(match(r"<a '>' >", document_res[0].re).hit == "<a '>' >");
-    assert(match(r"</a>>>>>", document_res[1].re).hit == r"</a>");
-    assert(match(r"</_a-8.a>>>>>", document_res[1].re).hit == r"</_a-8.a>");
-    assert(!match(r"<</a>", document_res[1].re));
-    assert(!match(r"</>", document_res[1].re));
-    assert(!match(r"<a/>", document_res[1].re));
-    assert(match(r"</>>>>", document_res[2].re).hit == "</>");
-    assert(match(r"<a/>>>>", document_res[2].re).hit == r"<a/>");
-    assert(match(r"<a '>' />>>>", document_res[2].re).hit == r"<a '>' />");
+    struct TestCase { string text; string expected_match; int expected_matcher; }
+    auto test_cases = [
+        TestCase("<>", "<>", 0),
+        TestCase("<<a>", "", 0),
+        TestCase("<a>>", "<a>", 0),
+        TestCase("<a '>' >   ", "<a '>' >", 0),
+        TestCase(" <<a>", "", 0),
+
+        TestCase("</a>>>>>", "</a>", 1),
+        TestCase("</_a-8.a>>>>>", "</_a-8.a>", 1),
+        TestCase("</._a-8.a>>>>>", "", 1), // illegal name
+        TestCase("<</a>>>>>", "", 1),
+
+        TestCase("</>>>>", "</>", 2),
+        TestCase("<a/>>>>", "<a/>", 2),
+        TestCase("<a '>' />>>>", "<a '>' />", 2),
+        TestCase("<<a/>>>>", "", 2),
+    ];
+    foreach (TestCase test_case; test_cases) {
+        int[] matchers;
+        int correct_matches;
+        for (auto i = 0; i < 3; i++) {
+            auto m = match(test_case.text, document_res[i].re);
+            if (m) {
+                matchers ~= i;
+                if (m.hit == test_case.expected_match) {
+                    correct_matches++;
+                } else {
+                    import std.stdio;
+                    writeln(m.hit, " != ", test_case.expected_match, " ", i);
+                }
+            }
+        }
+        if (test_case.expected_match.length == 0) {
+            assert(matchers.length == 0);
+        } else {
+            assert(matchers.length == 1);
+            assert(matchers[0] == test_case.expected_matcher);
+            assert(correct_matches == 1);
+        }
+    }
+}
+
+private static LexicalAnalyser!(Handle, Regex!char) document_lexan;
+
+static this () {
+    document_lexan = new LexicalAnalyser!(Handle, Regex!char)(document_literals, document_res, document_skips);
 }
