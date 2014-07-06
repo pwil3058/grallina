@@ -34,6 +34,7 @@ enum Handle {
     AMPERSAND,
     LESS_THAN,
     GREATER_THAN,
+    IMPL_CDATA,
 }
 
 static auto document_literals = [
@@ -75,6 +76,7 @@ static this() {
         REL!(Handle, Handle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*>"),
         REL!(Handle, Handle.END_TAG, "</(" ~ XMLName!() ~ ")>"),
         REL!(Handle, Handle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
+        REL!(Handle, Handle.IMPL_CDATA, "[^&<>]+"),
     ];
 }
 unittest {
@@ -125,4 +127,46 @@ private static LexicalAnalyser!(Handle, Regex!char) document_lexan;
 
 static this () {
     document_lexan = new LexicalAnalyser!(Handle, Regex!char)(document_literals, document_res, document_skips);
+}
+
+class MarkUp {
+    this(string text) {
+        string[] tag_stack;
+        import std.stdio;
+        with (Handle) foreach (Token!Handle token; document_lexan.input_token_range(text)) {
+            with (token) if (is_valid_match) {
+                switch (handle) {
+                case START_TAG:
+                    tag_stack ~= token.matched_text[1..$-1];
+                    break;
+                case END_TAG:
+                    if (tag_stack.length == 0) {
+                        writefln("Unexpected end tag: %s: at: %s", matched_text, location);
+                    } else if (tag_stack[$-1] != matched_text[2..$-1]) {
+                        writefln("Eexpected </%s> end tag got: %s: at: %s", tag_stack[$-1], matched_text, token.location);
+                    } else {
+                        tag_stack.length--;
+                    }
+                    break;
+                case START_END_TAG:
+                    break;
+                case IMPL_CDATA:
+                    break;
+                case AMPERSAND:
+                    break;
+                case LESS_THAN:
+                    break;
+                case GREATER_THAN:
+                    break;
+                default:
+                    writefln("%s: %s: |%s|", handle, location, matched_text);
+                }
+            } else {
+                writefln("Unexpected input: \"%s\": at %s", matched_text, location);
+            }
+        }
+    }
+}
+unittest {
+    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c/>");
 }
