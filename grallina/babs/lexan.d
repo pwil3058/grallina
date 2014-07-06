@@ -236,16 +236,16 @@ struct CharLocation {
     // Line numbers and offsets both start at 1 (i.e. human friendly)
     // as these are used for error messages.
     size_t index;
-    size_t lineNumber;
+    size_t line_number;
     size_t offset;
     string label; // e.g. name of file that text came from
 
     const string toString()
     {
         if (label.length > 0) {
-            return format("%s:%s(%s)", label, lineNumber, offset);
+            return format("%s:%s(%s)", label, line_number, offset);
         } else {
-            return format("%s(%s)", lineNumber, offset);
+            return format("%s(%s)", line_number, offset);
         }
     }
 }
@@ -253,7 +253,7 @@ struct CharLocation {
 class Token(H) {
 private:
     H _handle;
-    string _matchedText;
+    string _matched_text;
     CharLocation _location;
     bool _is_valid_match;
 
@@ -261,14 +261,14 @@ public:
     this(H handle, string text, CharLocation locn)
     {
         _handle = handle;
-        _matchedText = text;
+        _matched_text = text;
         _location = locn;
         _is_valid_match = true;
     }
 
     this(string text, CharLocation locn)
     {
-        _matchedText = text;
+        _matched_text = text;
         _location = locn;
         _is_valid_match = false;
     }
@@ -276,14 +276,14 @@ public:
     @property
     H handle()
     {
-        if (!_is_valid_match) throw new LexanInvalidToken(_matchedText, location);
+        if (!_is_valid_match) throw new LexanInvalidToken(_matched_text, location);
         return _handle;
     }
 
     @property
-    ref string matchedText()
+    ref string matched_text()
     {
-        return _matchedText;
+        return _matched_text;
     }
 
     @property
@@ -326,11 +326,11 @@ interface LexicalAnalyserIfce(H) {
 }
 
 class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
-    private LiteralMatcher!(H) literalMatcher;
-    private RegexLexeme!(H, RE)[] regexTokenSpecs;
-    private RE[] skipReList;
+    private LiteralMatcher!(H) literal_matcher;
+    private RegexLexeme!(H, RE)[] re_lexemes;
+    private RE[] skip_re_list;
 
-    this(ref LiteralLexeme!(H)[] lit_lexemes, ref RegexLexeme!(H, RE)[] re_lexemes, ref RE[] skipReList)
+    this(ref LiteralLexeme!(H)[] lit_lexemes, ref RegexLexeme!(H, RE)[] re_lexemes, ref RE[] skip_re_list)
     in {
         // Make sure handles are unique
         for (auto i = 0; i < (lit_lexemes.length - 1); i++) {
@@ -350,9 +350,9 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
         }
     }
     body {
-        literalMatcher = new LiteralMatcher!(H)(lit_lexemes);
-        this.regexTokenSpecs = re_lexemes;
-        this.skipReList = skipReList;
+        literal_matcher = new LiteralMatcher!(H)(lit_lexemes);
+        this.re_lexemes = re_lexemes;
+        this.skip_re_list = skip_re_list;
     }
 
     size_t get_skippable_count(string text)
@@ -360,8 +360,8 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
         size_t index = 0;
         while (index < text.length) {
             auto skips = 0;
-            foreach (skipRe; skipReList) {
-                auto m = match(text[index .. $], skipRe);
+            foreach (skip_re; skip_re_list) {
+                auto m = match(text[index .. $], skip_re);
                 if (!m.empty) {
                     index += m.hit.length;
                     skips++;
@@ -374,22 +374,22 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
 
     LiteralLexeme!(H) get_longest_literal_match(string text)
     {
-        return literalMatcher.get_longest_match(text);
+        return literal_matcher.get_longest_match(text);
     }
 
     HandleAndText!(H)[] get_longest_regex_match(string text)
     {
         HandleAndText!(H)[] hat;
 
-        foreach (tspec; regexTokenSpecs) {
-            auto m = match(text, tspec.re);
+        foreach (re_lexeme; re_lexemes) {
+            auto m = match(text, re_lexeme.re);
             // TODO: check for two or more of the same length
             // and throw a wobbly
             if (m) {
                 if (hat.length == 0 || hat[0].length == m.hit.length) {
-                    hat ~= HandleAndText!(H)(tspec.handle, m.hit);
+                    hat ~= HandleAndText!(H)(re_lexeme.handle, m.hit);
                 } else if (m.hit.length > hat.length) {
-                    hat = [HandleAndText!(H)(tspec.handle, m.hit)];
+                    hat = [HandleAndText!(H)(re_lexeme.handle, m.hit)];
                 }
             }
         }
@@ -404,12 +404,12 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
             // Assume that the front of the text is invalid
             // TODO: put in precondition to that effect
             index++;
-            if (literalMatcher.get_longest_match(text[index .. $]).is_valid) break;
-            foreach (tspec; regexTokenSpecs) {
-                if (match(text[index .. $], tspec.re)) break mainloop;
+            if (literal_matcher.get_longest_match(text[index .. $]).is_valid) break;
+            foreach (re_lexeme; re_lexemes) {
+                if (match(text[index .. $], re_lexeme.re)) break mainloop;
             }
-            foreach (skipRe; skipReList) {
-                if (match(text[index .. $], skipRe)) break mainloop;
+            foreach (skip_re; skip_re_list) {
+                if (match(text[index .. $], skip_re)) break mainloop;
             }
         }
         return index;
@@ -428,16 +428,16 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
 
 class TokenInputRange(H) {
     LexicalAnalyserIfce!(H) analyser;
-    private string inputText;
+    private string input_text;
     private CharLocation index_location;
-    private Token!(H) currentMatch;
+    private Token!(H) current_match;
 
     this (LexicalAnalyserIfce!(H) analyser, string text, string label="")
     {
         this.analyser = analyser;
         index_location = CharLocation(0, 1, 1, label);
-        inputText = text;
-        currentMatch = advance();
+        input_text = text;
+        current_match = advance();
     }
 
     private void incr_index_location(size_t length)
@@ -445,15 +445,15 @@ class TokenInputRange(H) {
         auto next_index = index_location.index + length;
         for (auto i = index_location.index; i < next_index; i++) {
             static if (newline.length == 1) {
-                if (newline[0] == inputText[i]) {
-                    index_location.lineNumber++;
+                if (newline[0] == input_text[i]) {
+                    index_location.line_number++;
                     index_location.offset = 1;
                 } else {
                     index_location.offset++;
                 }
             } else {
-                if (newline == inputText[i .. i + newline.length]) {
-                    index_location.lineNumber++;
+                if (newline == input_text[i .. i + newline.length]) {
+                    index_location.line_number++;
                     index_location.offset = 0;
                 } else {
                     index_location.offset++;
@@ -465,17 +465,17 @@ class TokenInputRange(H) {
 
     private Token!(H) advance()
     {
-        while (index_location.index < inputText.length) {
+        while (index_location.index < input_text.length) {
             // skips have highest priority
-            incr_index_location(analyser.get_skippable_count(inputText[index_location.index .. $]));
+            incr_index_location(analyser.get_skippable_count(input_text[index_location.index .. $]));
 
             // The reported location is for the first character of the match
             auto location = index_location;
 
             // Find longest match found by literal match or regex
-            auto llm = analyser.get_longest_literal_match(inputText[index_location.index .. $]);
+            auto llm = analyser.get_longest_literal_match(input_text[index_location.index .. $]);
 
-            auto lrem = analyser.get_longest_regex_match(inputText[index_location.index .. $]);
+            auto lrem = analyser.get_longest_regex_match(input_text[index_location.index .. $]);
 
             if (llm.is_valid && (lrem.length == 0 || llm.length >= lrem[0].length)) {
                 // if the matches are of equal length literal wins
@@ -490,8 +490,8 @@ class TokenInputRange(H) {
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
-                incr_index_location(analyser.distance_to_next_valid_input(inputText[index_location.index .. $]));
-                return new Token!(H)(inputText[start .. index_location.index], location);
+                incr_index_location(analyser.distance_to_next_valid_input(input_text[index_location.index .. $]));
+                return new Token!(H)(input_text[start .. index_location.index], location);
             }
         }
 
@@ -501,18 +501,18 @@ class TokenInputRange(H) {
     @property
     bool empty()
     {
-        return currentMatch is null;
+        return current_match is null;
     }
 
     @property
     Token!(H) front()
     {
-        return currentMatch;
+        return current_match;
     }
 
     void popFront()
     {
-        currentMatch = advance();
+        current_match = advance();
     }
 }
 
@@ -532,36 +532,36 @@ unittest {
         RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
         RegexLexeme!(string, Regex!char)("MORSE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
-    auto skipRelist = [
+    auto skip_re_list = [
         regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
         regex(r"^(//[^\n\r]*)"), // D EOL comment
         regex(r"^(\s+)"), // White space
     ];
-    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skipRelist);
+    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skip_re_list);
     auto la = laspec.input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto m = la.front(); la.popFront();
-    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
+    assert(m.handle == "IF" && m.matched_text == "if" && m.location.line_number == 1);
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
+    assert(m.handle == "IDENT" && m.matched_text == "iffy" && m.location.line_number == 1);
     m = la.front(); la.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"quoted\"" && m.location.line_number == 2);
     m = la.front(); la.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"if\"" && m.location.line_number == 2);
     m = la.front(); la.popFront();
-    assert(!m.is_valid_match && m.matchedText == "9" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matched_text == "9" && m.location.line_number == 3);
     assertThrown!LexanInvalidToken(m.handle != "blah blah blah");
     m = la.front(); la.popFront();
-    assert(!m.is_valid_match && m.matchedText == "$" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matched_text == "$" && m.location.line_number == 3);
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
+    assert(m.handle == "IDENT" && m.matched_text == "name" && m.location.line_number == 3);
     m = la.front(); la.popFront();
-    assert(m.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
+    assert(m.handle == "BTEXTL" && m.matched_text == "&{ one \n two &}" && m.location.line_number == 3);
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matched_text == "and" && m.location.line_number == 4);
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matched_text == "so" && m.location.line_number == 4);
     m = la.front(); la.popFront();
-    assert(m.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
+    assert(m.handle == "PRED" && m.matched_text == "?{on?}" && m.location.line_number == 4);
     assert(la.empty);
     la = laspec.input_token_range("
     some identifiers
@@ -580,26 +580,26 @@ and some included code %{
 %}
 ");
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "some" && m.location.lineNumber == 2);
+    assert(m.handle == "IDENT" && m.matched_text == "some" && m.location.line_number == 2);
     m = la.front(); la.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "identifiers" && m.location.lineNumber == 2);
+    assert(m.handle == "IDENT" && m.matched_text == "identifiers" && m.location.line_number == 2);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     assert(!m.is_valid_match);
     m = la.front(); la.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"+=\"" && m.location.lineNumber == 9);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"+=\"" && m.location.line_number == 9);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"\"\"" && m.location.lineNumber == 10);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"\"\"" && m.location.line_number == 10);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.handle == "ACTION" && m.matchedText == "!{ some D code !}" && m.location.lineNumber == 11);
+    assert(m.handle == "ACTION" && m.matched_text == "!{ some D code !}" && m.location.line_number == 11);
     m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
     m = la.front(); la.popFront();
-    assert(m.handle == "PREDICATE" && m.matchedText == "?( a boolean expression ?)" && m.location.lineNumber == 11);
+    assert(m.handle == "PREDICATE" && m.matched_text == "?( a boolean expression ?)" && m.location.line_number == 11);
     try {
         m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront(); m = la.front(); la.popFront();
         m = la.front(); la.popFront();
-        assert(m.handle == "CODE" && m.matchedText == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.lineNumber == 12);
+        assert(m.handle == "CODE" && m.matched_text == "%{\n    kllkkkl\n    hl;ll\n%}" && m.location.line_number == 12);
         assert(false, "Blows up before here!");
     } catch (LexanMultipleRegexMatches!(string) edata) {
         assert(edata.handles == ["CODE", "MORSE"]);
@@ -617,18 +617,18 @@ and some included code %{
         RegexLexeme!(int, Regex!char)(6, regex(r"^(\?\((.|[\n\r])*?\?\))")),
         RegexLexeme!(int, Regex!char)(7, regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
-    auto ilaspec = new LexicalAnalyser!(int, Regex!char)(ilit_lexemes, ire_lexemes, skipRelist);
+    auto ilaspec = new LexicalAnalyser!(int, Regex!char)(ilit_lexemes, ire_lexemes, skip_re_list);
     auto ila = ilaspec.input_token_range("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
     auto im = ila.front(); ila.popFront();
-    assert(im.handle == 0 && im.matchedText == "if" && im.location.lineNumber == 1);
+    assert(im.handle == 0 && im.matched_text == "if" && im.location.line_number == 1);
     im = ila.front(); ila.popFront();
-    assert(im.handle == 1 && im.matchedText == "iffy" && im.location.lineNumber == 1);
+    assert(im.handle == 1 && im.matched_text == "iffy" && im.location.line_number == 1);
     im = ila.front(); ila.popFront();
-    assert(im.handle == 4 && im.matchedText == "\"quoted\"" && im.location.lineNumber == 2);
+    assert(im.handle == 4 && im.matched_text == "\"quoted\"" && im.location.line_number == 2);
     im = ila.front(); ila.popFront();
-    assert(!im.is_valid_match && im.matchedText == "$!" && im.location.lineNumber == 2);
+    assert(!im.is_valid_match && im.matched_text == "$!" && im.location.line_number == 2);
     im = ila.front(); ila.popFront();
-    assert(!im.is_valid_match && im.matchedText == "%%" && im.location.lineNumber == 2);
+    assert(!im.is_valid_match && im.matched_text == "%%" && im.location.line_number == 2);
 }
 
 class InjectableTokenInputRange(H) {
@@ -656,7 +656,7 @@ class InjectableTokenInputRange(H) {
     Token!(H) front()
     {
         if (token_range_stack.length == 0) return null;
-        return token_range_stack[$ - 1].currentMatch;
+        return token_range_stack[$ - 1].current_match;
     }
 
     void popFront()
@@ -679,41 +679,41 @@ unittest {
         RegexLexeme!(string, Regex!char)("PREDICATE", regex(r"^(\?\((.|[\n\r])*?\?\))")),
         RegexLexeme!(string, Regex!char)("CODE", regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
-    auto skipRelist = [
+    auto skip_re_list = [
         regex(r"^(/\*(.|[\n\r])*?\*/)"), // D multi line comment
         regex(r"^(//[^\n\r]*)"), // D EOL comment
         regex(r"^(\s+)"), // White space
     ];
-    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skipRelist);
+    auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skip_re_list);
     auto ila = laspec.injectable_input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "one");
     auto m = ila.front(); ila.popFront();
-    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1);
+    assert(m.handle == "IF" && m.matched_text == "if" && m.location.line_number == 1);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "iffy" && m.location.lineNumber == 1);
+    assert(m.handle == "IDENT" && m.matched_text == "iffy" && m.location.line_number == 1);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"quoted\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"quoted\"" && m.location.line_number == 2);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"if\"" && m.location.lineNumber == 2);
+    assert(m.handle == "LITERAL" && m.matched_text == "\"if\"" && m.location.line_number == 2);
     m = ila.front(); ila.popFront();
-    assert(!m.is_valid_match && m.matchedText == "9" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matched_text == "9" && m.location.line_number == 3);
     ila.inject("if one \"name\"", "two");
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IF" && m.matchedText == "if" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "IF" && m.matched_text == "if" && m.location.line_number == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "one" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "IDENT" && m.matched_text == "one" && m.location.line_number == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(m.handle == "LITERAL" && m.matchedText == "\"name\"" && m.location.lineNumber == 1 && m.location.label == "two");
+    assert(m.handle == "LITERAL" && m.matched_text == "\"name\"" && m.location.line_number == 1 && m.location.label == "two");
     m = ila.front(); ila.popFront();
-    assert(!m.is_valid_match && m.matchedText == "$" && m.location.lineNumber == 3);
+    assert(!m.is_valid_match && m.matched_text == "$" && m.location.line_number == 3);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "name" && m.location.lineNumber == 3);
+    assert(m.handle == "IDENT" && m.matched_text == "name" && m.location.line_number == 3);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "BTEXTL" && m.matchedText == "&{ one \n two &}" && m.location.lineNumber == 3);
+    assert(m.handle == "BTEXTL" && m.matched_text == "&{ one \n two &}" && m.location.line_number == 3);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "and" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matched_text == "and" && m.location.line_number == 4);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "IDENT" && m.matchedText == "so" && m.location.lineNumber == 4);
+    assert(m.handle == "IDENT" && m.matched_text == "so" && m.location.line_number == 4);
     m = ila.front(); ila.popFront();
-    assert(m.handle == "PRED" && m.matchedText == "?{on?}" && m.location.lineNumber == 4);
+    assert(m.handle == "PRED" && m.matched_text == "?{on?}" && m.location.line_number == 4);
     assert(ila.empty);
 }
