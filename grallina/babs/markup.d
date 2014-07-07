@@ -2,21 +2,21 @@
 //
 // Copyright Peter Williams 2014 <pwil3058@bigpond.net.au>.
 //
-// This file is part of dguitk.
+// This file is part of grallina.
 //
-// dguitk is free software; you can redistribute it and/or modify
+// grallina is free software; you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License
 // as published by the Free Software Foundation; either version 3
 // of the License, or (at your option) any later version, with
 // some exceptions, please read the COPYING file.
 //
-// dguitk is distributed in the hope that it will be useful,
+// grallina is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with dguitk; if not, write to the Free Software
+// along with grallina; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110, USA
 
 module grallina.babs.markup;
@@ -130,8 +130,9 @@ static this () {
 }
 
 class MarkUp {
+    protected string[] tag_stack;
+
     this(string text) {
-        string[] tag_stack;
         import std.stdio;
         with (Handle) foreach (Token!Handle token; document_lexan.input_token_range(text)) {
             with (token) if (is_valid_match) {
@@ -143,7 +144,7 @@ class MarkUp {
                     if (tag_stack.length == 0) {
                         writefln("Unexpected end tag: %s: at: %s", matched_text, location);
                     } else if (tag_stack[$-1] != matched_text[2..$-1]) {
-                        writefln("Eexpected </%s> end tag got: %s: at: %s", tag_stack[$-1], matched_text, token.location);
+                        writefln("Expected </%s> end tag got: %s: at: %s", tag_stack[$-1], matched_text, token.location);
                     } else {
                         tag_stack.length--;
                     }

@@ -2,21 +2,21 @@
 //
 // Copyright Peter Williams 2014 <pwil3058@bigpond.net.au>.
 //
-// This file is part of dguitk.
+// This file is part of grallina.
 //
-// dguitk is free software; you can redistribute it and/or modify
+// grallina is free software; you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License
 // as published by the Free Software Foundation; either version 3
 // of the License, or (at your option) any later version, with
 // some exceptions, please read the COPYING file.
 //
-// dguitk is distributed in the hope that it will be useful,
+// grallina is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with dguitk; if not, write to the Free Software
+// along with grallina; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110, USA
 
 module grallina.babs.i18ndummy;
