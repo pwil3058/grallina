@@ -35,6 +35,7 @@ enum Handle {
     LESS_THAN,
     GREATER_THAN,
     IMPL_CDATA,
+    EXPL_CDATA,
 }
 
 static auto document_literals = [
@@ -64,7 +65,7 @@ template QString() {
 }
 
 template AnythingButLtGt() {
-    enum AnythingButLtGt = `(?:(?:[^<>'"/]*)|(?:` ~ QString!() ~ ")*)";
+    enum AnythingButLtGt = `(?:(?:[^!<>'"/][^<>'"/]*)|(?:` ~ QString!() ~ ")*)";
 }
 
 // TODO: convert to ctRegex when it stops crashing all the time
@@ -77,7 +78,9 @@ static this() {
         REL!(Handle, Handle.END_TAG, "</(" ~ XMLName!() ~ ")>"),
         REL!(Handle, Handle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
         REL!(Handle, Handle.IMPL_CDATA, "[^&<>]+"),
+        REL!(Handle, Handle.EXPL_CDATA, r"<!\[CDATA\[(.|[\n\r])*?]]>"),
     ];
+    document_skips = [ regex("^<!--(.|[\n\r])*?-->") ];
 }
 unittest {
     struct TestCase { string text; string expected_match; int expected_matcher; }
@@ -153,6 +156,9 @@ class MarkUp {
                     break;
                 case IMPL_CDATA:
                     break;
+                case EXPL_CDATA:
+                    writeln(matched_text);
+                    break;
                 case AMPERSAND:
                     break;
                 case LESS_THAN:
@@ -162,6 +168,7 @@ class MarkUp {
                 default:
                     writefln("%s: %s: |%s|", handle, location, matched_text);
                 }
+                writeln(token.handle, " : :", token.matched_text);
             } else {
                 writefln("Unexpected input: \"%s\": at %s", matched_text, location);
             }
@@ -169,5 +176,5 @@ class MarkUp {
     }
 }
 unittest {
-    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c/>");
+    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c/> <!-- a comment --> then --> <![CDATA[gh]]>");
 }
