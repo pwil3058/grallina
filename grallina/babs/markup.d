@@ -179,7 +179,6 @@ struct Tag {
     NamedValue[] attributes;
 
     this(string text, CharLocation start_location) {
-        import std.stdio;
         auto tokens = tag_lexan.input_token_range(text);
         if (tokens.empty) throw new MarkupException("Empty tag", start_location);
         auto first = tokens.front;
@@ -211,40 +210,43 @@ struct Tag {
                         break;
                     }
                 } else {
-                    writefln("Expected %s got %s: %s", expected_handle, handle, matched_text);
+                    throw new MarkupException(format("Expected %s got %s: %s", expected_handle, handle, matched_text), combine(start_location, location));
                 }
             } else {
-                writefln("Unexpected tag content: \"%s\": at %s", matched_text, location);
+                throw new MarkupException(format("Unexpected tag content: \"%s\"", matched_text), combine(start_location, location));
             }
         }
-        if (expected_handle != TagHandle.WHITESPACE) { writeln("Incomplete TAG"); }
+        if (expected_handle != TagHandle.WHITESPACE) throw new MarkupException("Incomplete TAG", start_location);
     }
 }
 
 class MarkUp {
-    protected string[] tag_stack;
     protected string _extracted_text;
 
     this(string text) {
-        import std.stdio;
+        string[] tag_stack;
         with (DocHandle) foreach (token; document_lexan.input_token_range(text)) {
             with (token) if (is_valid_match) {
                 final switch (handle) {
                 case START_TAG:
                     auto tag = Tag(token.matched_text[1..$-1], location);
+                    handle_start_tag(tag, extracted_text.length, tag_stack, location);
                     tag_stack ~= tag.name;
                     break;
                 case END_TAG:
                     if (tag_stack.length == 0) {
-                        writefln("Unexpected end tag: %s: at: %s", matched_text, location);
+                        throw new MarkupException(format("Unexpected end tag: %s", matched_text), location);
                     } else if (tag_stack[$-1] != matched_text[2..$-1]) {
-                        writefln("Expected </%s> end tag got: %s: at: %s", tag_stack[$-1], matched_text, token.location);
+                        throw new MarkupException(format("Expected </%s> end tag got: %s", tag_stack[$-1], matched_text), location);
                     } else {
                         tag_stack.length--;
+                        handle_end_tag(matched_text[2..$-1], extracted_text.length, location);
                     }
                     break;
                 case START_END_TAG:
                     auto tag = Tag(token.matched_text[1..$-2], location);
+                    handle_start_tag(tag, extracted_text.length, tag_stack, location);
+                    handle_end_tag(tag.name, extracted_text.length, location);
                     break;
                 case IMPL_CDATA:
                     _extracted_text ~= matched_text;
@@ -263,16 +265,33 @@ class MarkUp {
                     break;
                 }
             } else {
-                writefln("Unexpected input: \"%s\": at %s", matched_text, location);
+                throw new MarkupException(format("Unexpected input: \"%s\"", matched_text), location);
             }
         }
     }
+
+    abstract void handle_start_tag(in Tag tag, size_t et_index, in string[] context, in CharLocation location);
+    abstract void handle_end_tag(string tag_name, size_t et_index, in CharLocation location);
 
     @property
     string extracted_text() { return _extracted_text; }
 }
 unittest {
     import std.stdio;
-    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c x='hj'/> <!-- a comment --> then --> <![CDATA[gh]]>");
+    class TestMarkUp: MarkUp {
+        this(string text) { super(text); }
+        override void handle_start_tag(in Tag tag, size_t et_index, in string[] context, in CharLocation location)
+        {
+            writefln("Tag: %s", tag.name);
+            foreach (attr; tag.attributes) {
+                writefln("\t%s = %s", attr.name, attr.value);
+            }
+        }
+        override void handle_end_tag(string tag_name, size_t et_index, in CharLocation location)
+        {
+            writefln("EndTag: %s", tag_name);
+        }
+    }
+    auto mu = new TestMarkUp("this is <b>bold</b> text &amp; test <c x='hj'/> <!-- a comment --> then --&gt; <![CDATA[&amp;]]>");
     writeln("Extracted text: ", mu.extracted_text);
 }
