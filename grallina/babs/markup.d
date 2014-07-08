@@ -22,15 +22,14 @@
 module grallina.babs.markup;
 
 import std.regex;
+import std.string;
 
 import grallina.babs.lexan;
 
-enum Handle {
+enum DocHandle {
     START_TAG,
     END_TAG,
     START_END_TAG,
-    NAME,
-    EQUALS,
     AMPERSAND,
     LESS_THAN,
     GREATER_THAN,
@@ -38,14 +37,21 @@ enum Handle {
     EXPL_CDATA,
 }
 
+enum TagHandle {
+    NAME,
+    EQUALS,
+    VALUE,
+    WHITESPACE,
+}
+
 static auto document_literals = [
-    LiteralLexeme!Handle(Handle.AMPERSAND, "&amp;"),
-    LiteralLexeme!Handle(Handle.LESS_THAN, "&lt;"),
-    LiteralLexeme!Handle(Handle.GREATER_THAN, "&gt;")
+    LiteralLexeme!DocHandle(DocHandle.AMPERSAND, "&amp;"),
+    LiteralLexeme!DocHandle(DocHandle.LESS_THAN, "&lt;"),
+    LiteralLexeme!DocHandle(DocHandle.GREATER_THAN, "&gt;")
 ];
 
-static auto start_tag_literals = [
-    LiteralLexeme!Handle(Handle.EQUALS, "=")
+static auto tag_literals = [
+    LiteralLexeme!TagHandle(TagHandle.EQUALS, "=")
 ];
 
 template XMLName() {
@@ -70,17 +76,24 @@ template AnythingButLtGt() {
 
 // TODO: convert to ctRegex when it stops crashing all the time
 alias EtRegexLexeme REL;
-static RegexLexeme!(Handle, Regex!char)[] document_res;
+static RegexLexeme!(DocHandle, Regex!char)[] document_res;
 static Regex!(char)[] document_skips;
+static RegexLexeme!(TagHandle, Regex!char)[] tag_res;
+static Regex!(char)[] tag_skips;
 static this() {
     document_res = [
-        REL!(Handle, Handle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*>"),
-        REL!(Handle, Handle.END_TAG, "</(" ~ XMLName!() ~ ")>"),
-        REL!(Handle, Handle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
-        REL!(Handle, Handle.IMPL_CDATA, "[^&<>]+"),
-        REL!(Handle, Handle.EXPL_CDATA, r"<!\[CDATA\[(.|[\n\r])*?]]>"),
+        REL!(DocHandle, DocHandle.START_TAG, "<" ~ AnythingButLtGt!() ~ "*>"),
+        REL!(DocHandle, DocHandle.END_TAG, "</(" ~ XMLName!() ~ ")>"),
+        REL!(DocHandle, DocHandle.START_END_TAG, "<" ~ AnythingButLtGt!() ~ "*/>"),
+        REL!(DocHandle, DocHandle.IMPL_CDATA, "[^&<>]+"),
+        REL!(DocHandle, DocHandle.EXPL_CDATA, r"<!\[CDATA\[(.|[\n\r])*?]]>"),
     ];
     document_skips = [ regex("^<!--(.|[\n\r])*?-->") ];
+    tag_res = [
+        REL!(TagHandle, TagHandle.NAME, XMLName!()),
+        REL!(TagHandle, TagHandle.VALUE, QString!()),
+        REL!(TagHandle, TagHandle.WHITESPACE, r"\s*"),
+    ];
 }
 unittest {
     struct TestCase { string text; string expected_match; int expected_matcher; }
@@ -126,22 +139,100 @@ unittest {
     }
 }
 
-private static LexicalAnalyser!(Handle, Regex!char) document_lexan;
+private static LexicalAnalyser!(DocHandle, Regex!char) document_lexan;
+private static LexicalAnalyser!(TagHandle, Regex!char) tag_lexan;
 
 static this () {
-    document_lexan = new LexicalAnalyser!(Handle, Regex!char)(document_literals, document_res, document_skips);
+    document_lexan = new LexicalAnalyser!(DocHandle, Regex!char)(document_literals, document_res, document_skips);
+    tag_lexan = new LexicalAnalyser!(TagHandle, Regex!char)(tag_literals, tag_res, tag_skips);
+}
+
+class MarkupException: Exception {
+    CharLocation location;
+
+    this(string message, CharLocation location, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        this.location = location;
+        super(format("%s: at: %s", message, location), file, line, next);
+    }
+}
+
+struct NamedValue {
+    string name;
+    string value;
+}
+
+private ref CharLocation combine(ref CharLocation locn1, in CharLocation locn2)
+{
+    if (locn2.line_number > 1) {
+        locn1.line_number += locn2.line_number - 1;
+        locn1.offset = locn2.offset;
+    } else {
+        locn1.offset += locn2.offset + 1; // allow for "<"
+    }
+    locn1.index += locn2.index + 1;
+    return locn1;
+}
+
+struct Tag {
+    string name;
+    NamedValue[] attributes;
+
+    this(string text, CharLocation start_location) {
+        import std.stdio;
+        auto tokens = tag_lexan.input_token_range(text);
+        if (tokens.empty) throw new MarkupException("Empty tag", start_location);
+        auto first = tokens.front;
+        if (first.is_valid_match && first.handle == TagHandle.NAME) {
+            name = first.matched_text;
+        } else {
+            throw new MarkupException("Invalid tag name: " ~ first.matched_text, combine(start_location, first.location));
+        }
+        tokens.popFront();
+        auto expected_handle = TagHandle.WHITESPACE;
+        string attr_name;
+        with (TagHandle) foreach (token; tokens) {
+            with (token) if (is_valid_match) {
+                if (handle == expected_handle) {
+                    final switch (handle) {
+                    case NAME:
+                        attr_name = matched_text;
+                        expected_handle = EQUALS;
+                        break;
+                    case EQUALS:
+                        expected_handle = VALUE;
+                        break;
+                    case VALUE:
+                        attributes ~= NamedValue(attr_name, matched_text);
+                        expected_handle = WHITESPACE;
+                        break;
+                    case WHITESPACE:
+                        expected_handle = NAME;
+                        break;
+                    }
+                } else {
+                    writefln("Expected %s got %s: %s", expected_handle, handle, matched_text);
+                }
+            } else {
+                writefln("Unexpected tag content: \"%s\": at %s", matched_text, location);
+            }
+        }
+        if (expected_handle != TagHandle.WHITESPACE) { writeln("Incomplete TAG"); }
+    }
 }
 
 class MarkUp {
     protected string[] tag_stack;
+    protected string _extracted_text;
 
     this(string text) {
         import std.stdio;
-        with (Handle) foreach (Token!Handle token; document_lexan.input_token_range(text)) {
+        with (DocHandle) foreach (token; document_lexan.input_token_range(text)) {
             with (token) if (is_valid_match) {
-                switch (handle) {
+                final switch (handle) {
                 case START_TAG:
-                    tag_stack ~= token.matched_text[1..$-1];
+                    auto tag = Tag(token.matched_text[1..$-1], location);
+                    tag_stack ~= tag.name;
                     break;
                 case END_TAG:
                     if (tag_stack.length == 0) {
@@ -153,28 +244,35 @@ class MarkUp {
                     }
                     break;
                 case START_END_TAG:
+                    auto tag = Tag(token.matched_text[1..$-2], location);
                     break;
                 case IMPL_CDATA:
+                    _extracted_text ~= matched_text;
                     break;
                 case EXPL_CDATA:
-                    writeln(matched_text);
+                    _extracted_text ~= matched_text[9..$-3];
                     break;
                 case AMPERSAND:
+                    _extracted_text ~= "&";
                     break;
                 case LESS_THAN:
+                    _extracted_text ~= "<";
                     break;
                 case GREATER_THAN:
+                    _extracted_text ~= ">";
                     break;
-                default:
-                    writefln("%s: %s: |%s|", handle, location, matched_text);
                 }
-                writeln(token.handle, " : :", token.matched_text);
             } else {
                 writefln("Unexpected input: \"%s\": at %s", matched_text, location);
             }
         }
     }
+
+    @property
+    string extracted_text() { return _extracted_text; }
 }
 unittest {
-    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c/> <!-- a comment --> then --> <![CDATA[gh]]>");
+    import std.stdio;
+    auto mu = new MarkUp("this > is <b>bold</b> text &amp; test <c x='hj'/> <!-- a comment --> then --> <![CDATA[gh]]>");
+    writeln("Extracted text: ", mu.extracted_text);
 }
