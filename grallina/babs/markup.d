@@ -191,29 +191,25 @@ struct Tag {
         auto expected_handle = TagHandle.WHITESPACE;
         string attr_name;
         with (TagHandle) foreach (token; tokens) {
-            with (token) if (is_valid_match) {
-                if (handle == expected_handle) {
-                    final switch (handle) {
-                    case NAME:
-                        attr_name = matched_text;
-                        expected_handle = EQUALS;
-                        break;
-                    case EQUALS:
-                        expected_handle = VALUE;
-                        break;
-                    case VALUE:
-                        attributes ~= NamedValue(attr_name, matched_text);
-                        expected_handle = WHITESPACE;
-                        break;
-                    case WHITESPACE:
-                        expected_handle = NAME;
-                        break;
-                    }
-                } else {
-                    throw new MarkupException(format("Expected %s got %s: %s", expected_handle, handle, matched_text), combine(start_location, location));
+            with (token) if (handle == expected_handle) {
+                final switch (handle) {
+                case NAME:
+                    attr_name = matched_text;
+                    expected_handle = EQUALS;
+                    break;
+                case EQUALS:
+                    expected_handle = VALUE;
+                    break;
+                case VALUE:
+                    attributes ~= NamedValue(attr_name, matched_text);
+                    expected_handle = WHITESPACE;
+                    break;
+                case WHITESPACE:
+                    expected_handle = NAME;
+                    break;
                 }
             } else {
-                throw new MarkupException(format("Unexpected tag content: \"%s\"", matched_text), combine(start_location, location));
+                throw new MarkupException(format("Expected %s got %s: %s", expected_handle, handle, matched_text), combine(start_location, location));
             }
         }
         if (expected_handle != TagHandle.WHITESPACE) throw new MarkupException("Incomplete TAG", start_location);
@@ -226,46 +222,42 @@ class MarkUp {
     this(string text) {
         string[] tag_stack;
         with (DocHandle) foreach (token; document_lexan.input_token_range(text)) {
-            with (token) if (is_valid_match) {
-                final switch (handle) {
-                case START_TAG:
-                    auto tag = Tag(token.matched_text[1..$-1], location);
-                    handle_start_tag(tag, extracted_text.length, tag_stack, location);
-                    tag_stack ~= tag.name;
-                    break;
-                case END_TAG:
-                    if (tag_stack.length == 0) {
-                        throw new MarkupException(format("Unexpected end tag: %s", matched_text), location);
-                    } else if (tag_stack[$-1] != matched_text[2..$-1]) {
-                        throw new MarkupException(format("Expected </%s> end tag got: %s", tag_stack[$-1], matched_text), location);
-                    } else {
-                        tag_stack.length--;
-                        handle_end_tag(matched_text[2..$-1], extracted_text.length, location);
-                    }
-                    break;
-                case START_END_TAG:
-                    auto tag = Tag(token.matched_text[1..$-2], location);
-                    handle_start_tag(tag, extracted_text.length, tag_stack, location);
-                    handle_end_tag(tag.name, extracted_text.length, location);
-                    break;
-                case IMPL_CDATA:
-                    _extracted_text ~= matched_text;
-                    break;
-                case EXPL_CDATA:
-                    _extracted_text ~= matched_text[9..$-3];
-                    break;
-                case AMPERSAND:
-                    _extracted_text ~= "&";
-                    break;
-                case LESS_THAN:
-                    _extracted_text ~= "<";
-                    break;
-                case GREATER_THAN:
-                    _extracted_text ~= ">";
-                    break;
+            with (token) final switch (handle) {
+            case START_TAG:
+                auto tag = Tag(token.matched_text[1..$-1], location);
+                handle_start_tag(tag, extracted_text.length, tag_stack, location);
+                tag_stack ~= tag.name;
+                break;
+            case END_TAG:
+                if (tag_stack.length == 0) {
+                    throw new MarkupException(format("Unexpected end tag: %s", matched_text), location);
+                } else if (tag_stack[$-1] != matched_text[2..$-1]) {
+                    throw new MarkupException(format("Expected </%s> end tag got: %s", tag_stack[$-1], matched_text), location);
+                } else {
+                    tag_stack.length--;
+                    handle_end_tag(matched_text[2..$-1], extracted_text.length, location);
                 }
-            } else {
-                throw new MarkupException(format("Unexpected input: \"%s\"", matched_text), location);
+                break;
+            case START_END_TAG:
+                auto tag = Tag(token.matched_text[1..$-2], location);
+                handle_start_tag(tag, extracted_text.length, tag_stack, location);
+                handle_end_tag(tag.name, extracted_text.length, location);
+                break;
+            case IMPL_CDATA:
+                _extracted_text ~= matched_text;
+                break;
+            case EXPL_CDATA:
+                _extracted_text ~= matched_text[9..$-3];
+                break;
+            case AMPERSAND:
+                _extracted_text ~= "&";
+                break;
+            case LESS_THAN:
+                _extracted_text ~= "<";
+                break;
+            case GREATER_THAN:
+                _extracted_text ~= ">";
+                break;
             }
         }
     }

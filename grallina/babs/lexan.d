@@ -142,9 +142,9 @@ class LexanInvalidToken: LexanException {
  *
  * static auto my_literals = [
  *      LiteralLexeme!MyTokens(IF, "if"),
- *      LiteralLexeme!MyTokens(IF, "then"),
- *      LiteralLexeme!MyTokens(IF, "else"),
- *      LiteralLexeme!MyTokens(IF, "+"),
+ *      LiteralLexeme!MyTokens(THEN, "then"),
+ *      LiteralLexeme!MyTokens(ELSE, "else"),
+ *      LiteralLexeme!MyTokens(PLUS, "+"),
  * ]
  * ---
  */
