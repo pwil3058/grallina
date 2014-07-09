@@ -18,6 +18,37 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with grallina; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110, USA
+/**
+ * Provides a simple mechanism for creating lexical analysers. The lexicon
+ * to be analysed is specified using a combination of literal lexemes
+ * (for reserved words, operators, etc.), regex lexemes (for names, numbers, etc.)
+ * and skip (white space) regexes.
+ *
+ * The resulting lexical analyser can be used to create two types of
+ * token input range:
+ *  - a simple token input range for a single string
+ *  - an injectable input range which starts out with a single string
+ * but may have arbitrary strings injected into it at any time e.g.
+ * implementation of C include files.
+ *
+ * The string being analysed and all of the state data for the progress
+ * of the analysis are held within the generated input ranges and a
+ * single lexical analyser can be used to analyse several strings
+ * simultaneously.  I.e. only one copy of the analyser for any lexicon
+ * is needed and it acts as a token input range factory.
+ *
+ * The token input ranges are light weight as they do not carry their
+ * own copy of the specification just a reference to the lexical analyser
+ * which provides the necessary services via a defined interface.
+ *
+ * Copyright: Copyright Peter Williams 2014-.
+ *
+ * License:   $(WEB gnu.org/licenses/lgpl.html, GNU Lesser General Public License 3.0).
+ *
+ * Authors:   Peter Williams
+ *
+ * Source: $(GRALLINASRC grallina.babs.lexan.d)
+ */
 
 module grallina.babs.lexan;
 
@@ -25,6 +56,10 @@ import std.regex;
 import std.ascii;
 import std.string;
 
+/**
+ * This is a base exception from which all Lexan exceptions are derived.
+ * It provides a mechanism to catch any Lexan exception.
+ */
 class LexanException: Exception {
     this(string message, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
     {
@@ -32,8 +67,14 @@ class LexanException: Exception {
     }
 }
 
+/**
+ * This exception is thrown if two literal lexemes have the same pattern
+ * and should not be caught. It indicates that there is an error in the
+ * specification that needs to be fixed before a usable lexical analyser
+ * can be created.  This will be thrown during the initial phase.
+ */
 class LexanDuplicateLiteralPattern: LexanException {
-    string duplicate_pattern;
+    string duplicate_pattern; /// the duplicated pattern
 
     this(string name, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
     {
@@ -42,22 +83,16 @@ class LexanDuplicateLiteralPattern: LexanException {
     }
 }
 
-class LexanInvalidToken: LexanException {
-    string unexpected_text;
-    CharLocation location;
-
-    this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
-    {
-        unexpected_text = utext;
-        location = locn;
-        string msg = format("Invalid Iput: \"%s\" at %s.", utext, locn);
-        super(msg, file, line, next);
-    }
-}
-
+/**
+ * This exception is thrown if two regex lexemes match the same string
+ * and should not be caught. It indicates that there is an error in the
+ * specification that needs to be fixed before a usable lexical analyser
+ * can be created. It is thrown if such a situation arises while analysing
+ * a string and will not be thrown during the initialization phase.
+ */
 class LexanMultipleRegexMatches(H): LexanException {
-    string matched_text;
-    H[] handles;
+    string matched_text; /// the piece of text that was matched
+    H[] handles; /// the handles of the regex lexemes that made the match
     CharLocation location;
 
     this(HandleAndText!(H)[] hats, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
@@ -71,9 +106,51 @@ class LexanMultipleRegexMatches(H): LexanException {
     }
 }
 
+/**
+ * This exception is raised during analysis of a provided text when
+ * characters are encountered that:
+ *      - are not skipped by the skip regexes,
+ *      - do not matche any of the literal lexemes' patterns, and
+ *      - are not matched by any of the regex lexems.
+ * It contains data about the nature and location of the problematic
+ * characters and leaves the token input range that threw it in a usable
+ * state in that it is in a position to provide a valid token or is empty.
+ *
+ * It is safe to catch this exception as it concerns an error in the
+ * analysed text not the lexical analyser and client can then either
+ * abandon the analysis or continue analysing the remainder of the
+ * text as best suits their needs.
+ */
+class LexanInvalidToken: LexanException {
+    string unexpected_text;
+    CharLocation location;
+
+    this(string utext, CharLocation locn, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+    {
+        unexpected_text = utext;
+        location = locn;
+        string msg = format("Invalid Iput: \"%s\" at %s.", utext, locn);
+        super(msg, file, line, next);
+    }
+}
+
+/**
+ * A struct for defining literal lexemes.
+ * Example:
+ * ---
+ * enum MyTokens { IF, THEN, ELSE, PLUS, VARName, ........}
+ *
+ * static auto my_literals = [
+ *      LiteralLexeme!MyTokens(IF, "if"),
+ *      LiteralLexeme!MyTokens(IF, "then"),
+ *      LiteralLexeme!MyTokens(IF, "else"),
+ *      LiteralLexeme!MyTokens(IF, "+"),
+ * ]
+ * ---
+ */
 struct LiteralLexeme(H) {
-    H handle;
-    string pattern;
+    H handle; /// a unique handle for this lexeme
+    string pattern; /// the text pattern that the lexeme represents
 
     @property
     size_t length()
