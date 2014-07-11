@@ -1,0 +1,465 @@
+// dunnart.ddgs
+//
+// Copyright Peter Williams 2013 <pwil3058@bigpond.net.au>.
+//
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+
+// dunnart specification for dunnart grammar specification language
+
+%{
+// dunnart.d
+//
+// Copyright Peter Williams 2013 <pwil3058@bigpond.net.au>.
+//
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+%}
+
+%{
+import std.string;
+
+import grallina.babs.lexan;
+import symbols;
+import grammar;
+
+GrammarSpecification grammarSpecification;
+
+struct ProductionTail {
+    Symbol[] rightHandSide;
+    AssociativePrecedence associativePrecedence;
+    Predicate predicate;
+    SemanticAction action;
+}
+
+// Aliases for use in field definitions
+alias ProductionTail[] ProductionTailList;
+alias Symbol[] SymbolList;
+alias string[] StringList;
+
+uint errorCount;
+uint warningCount;
+
+void message(T...)(const CharLocation locn, const string tag, const string format, T args)
+{
+    stderr.writef("%s:%s:", locn, tag);
+    stderr.writefln(format, args);
+    stderr.flush();
+}
+
+void warning(T...)(const CharLocation locn, const string format, T args)
+{
+    message(locn, "Warning", format, args);
+    warningCount++;
+}
+
+void error(T...)(const CharLocation locn, const string format, T args)
+{
+    message(locn, "Error", format, args);
+    errorCount++;
+}
+
+GrammarSpecification parse_specification_text(string text, string label="") {
+    auto grammarSpecification = new GrammarSpecification();
+%}
+
+%field  Symbol symbol
+%field  SymbolList symbolList
+%field  Predicate predicate
+%field  SemanticAction semanticAction
+%field  AssociativePrecedence associativePrecedence
+%field  ProductionTail productionTail
+%field  ProductionTailList productionTailList
+%field  StringList stringList
+
+%token  REGEX           (\(.+\)(?=\s))
+%token  LITERAL         ("\S+")
+%token  TOKEN           "%token"
+%token  FIELD           "%field"
+%token  LEFT            "%left"
+%token  RIGHT           "%right"
+%token  NONASSOC        "%nonassoc"
+%token  PRECEDENCE      "%prec"
+%token  SKIP            "%skip"
+%token  ERROR           "%error"
+%token  LEXERROR        "%lexerror"
+%token  NEWSECTION      "%%"
+%token  COLON           ":"
+%token  VBAR            "|"
+%token  DOT             "."
+%token  IDENT           ([a-zA-Z]+[a-zA-Z0-9_]*)
+%token  FIELDNAME       (<[a-zA-Z]+[a-zA-Z0-9_]*>)
+%token  PREDICATE       (\?\((.|[\n\r])*?\?\))
+%token  ACTION          (!\{(.|[\n\r])*?!\})
+%token  DCODE           (%\{(.|[\n\r])*?%\})
+
+%skip (/\*(.|[\n\r])*?\*/)
+%skip (//[^\n\r]*)
+%skip (\s+)
+
+%%
+specification: preamble definitions "%%" production_rules coda.
+
+// Preamble
+preamble:
+        !{
+            // no preamble defined so there's nothing to do
+        !}
+    | DCODE
+        !{
+            grammarSpecification.set_preamble($1.ddMatchedText[2 .. $ - 2]);
+        !}
+    | DCODE DCODE
+        !{
+            grammarSpecification.set_header($1.ddMatchedText[2 .. $ - 2]);
+            grammarSpecification.set_preamble($2.ddMatchedText[2 .. $ - 2]);
+        !}
+    .
+
+// Coda
+coda:
+        !{
+            // no coda defined so there's nothing to do
+        !}
+    | DCODE
+        !{
+            grammarSpecification.set_coda($1.ddMatchedText[2 .. $ - 2]);
+        !}
+    .
+
+definitions : field_definitions token_definitions skip_definitions precedence_definitions .
+
+// Field definitions
+field_definitions : // empty production
+        !{
+            // do nothing
+        !}
+    | field_definitions field_definition
+    .
+
+field_definition: "%field" fieldType fieldName
+        !{
+            if (grammarSpecification.symbolTable.is_known_field($3.ddMatchedText)) {
+                auto previous = grammarSpecification.symbolTable.get_field_defined_at($3.ddMatchedText);
+                error($3.ddLocation, "\"%s\" already declared at line %s.", previous.line_number);
+            } else {
+                grammarSpecification.symbolTable.new_field($3.ddMatchedText, $2.ddMatchedText, "", $3.ddLocation);
+            }
+        !}
+    | "%field" fieldType fieldName fieldConversionFunction
+        !{
+            if (grammarSpecification.symbolTable.is_known_field($3.ddMatchedText)) {
+                auto previous = grammarSpecification.symbolTable.get_field_defined_at($3.ddMatchedText);
+                error($3.ddLocation, "\"%s\" already declared at line %s.", previous.line_number);
+            } else {
+                grammarSpecification.symbolTable.new_field($3.ddMatchedText, $2.ddMatchedText, $4.ddMatchedText, $3.ddLocation);
+            }
+        !}
+    .
+
+fieldType: IDENT ?( !is_allowable_name($1.ddMatchedText) ?)
+        !{
+            warning($1.ddLocation, "field type name \"%s\" may clash with generated code", $1.ddMatchedText);
+        !}
+    | IDENT
+    .
+
+fieldName: IDENT ?( !is_allowable_name($1.ddMatchedText) ?)
+        !{
+            warning($1.ddLocation, "field name \"%s\" may clash with generated code", $1.ddMatchedText);
+        !}
+    | IDENT
+    .
+
+fieldConversionFunction: IDENT ?( !is_allowable_name($1.ddMatchedText) ?)
+        !{
+            warning($1.ddLocation, "field conversion function name \"%s\" may clash with generated code", $1.ddMatchedText);
+        !}
+    | IDENT
+    .
+
+// Token definitions
+token_definitions : token_definition
+    | token_definitions token_definition
+    .
+
+token_definition: "%token" new_token_name pattern
+        !{
+            if (grammarSpecification.symbolTable.is_known_symbol($2.ddMatchedText)) {
+                auto previous = grammarSpecification.symbolTable.get_declaration_point($2.ddMatchedText);
+                error($2.ddLocation, "\"%s\" already declared at line %s.", previous.line_number);
+            } else {
+                grammarSpecification.symbolTable.new_token($2.ddMatchedText, $3.ddMatchedText, $2.ddLocation);
+            }
+        !}
+    | "%token" FIELDNAME new_token_name pattern
+        !{
+            auto fieldName = $2.ddMatchedText[1 .. $ - 1];
+            if (grammarSpecification.symbolTable.is_known_symbol($3.ddMatchedText)) {
+                auto previous = grammarSpecification.symbolTable.get_declaration_point($3.ddMatchedText);
+                error($3.ddLocation, "\"%s\" already declared at line %s.", previous.line_number);
+            } else if (!grammarSpecification.symbolTable.is_known_field(fieldName)) {
+                error($2.ddLocation, "field name \"%s\" is not known.", fieldName);
+                grammarSpecification.symbolTable.new_token($3.ddMatchedText, $4.ddMatchedText, $3.ddLocation);
+            } else {
+                grammarSpecification.symbolTable.new_token($3.ddMatchedText, $4.ddMatchedText, $3.ddLocation, fieldName);
+            }
+        !}
+    .
+
+new_token_name: IDENT ?( !is_allowable_name($1.ddMatchedText) ?)
+        !{
+            warning($1.ddLocation, "token name \"%s\" may clash with generated code", $1.ddMatchedText);
+        !}
+    | IDENT
+    .
+
+pattern: REGEX
+    | LITERAL
+    .
+
+// Skip definitions
+skip_definitions : // empty production
+        !{
+            // do nothing
+        !}
+    | skip_definitions skip_definition
+    .
+
+skip_definition: "%skip" REGEX
+        !{
+            grammarSpecification.symbolTable.add_skip_rule($2.ddMatchedText);
+        !}
+    .
+
+// Precedence definitions
+precedence_definitions : // empty production
+        !{
+            // do nothing
+        !}
+    | precedence_definitions precedence_definition
+    .
+
+precedence_definition: "%left" tag_list
+        !{
+            grammarSpecification.symbolTable.set_precedences(Associativity.left, $2.symbolList);
+        !}
+    | "%right" tag_list
+        !{
+            grammarSpecification.symbolTable.set_precedences(Associativity.right, $2.symbolList);
+        !}
+    | "%nonassoc" tag_list
+        !{
+            grammarSpecification.symbolTable.set_precedences(Associativity.nonassoc, $2.symbolList);
+        !}
+    .
+
+tag_list: tag
+        !{
+            if ($1.symbol is null) {
+                $$.symbolList = [];
+            } else {
+                $$.symbolList = [$1.symbol];
+            }
+        !}
+    | tag_list tag
+        !{
+            if ($2.symbol is null) {
+                $$.symbolList = $1.symbolList;
+            } else {
+                $$.symbolList = $1.symbolList ~ $2.symbol;
+            }
+        !}
+    .
+
+tag: LITERAL
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_literal_token($1.ddMatchedText, $1.ddLocation);
+            if ($$.symbol is null) {
+                error($1.ddLocation, "Literal \"%s\" is not known.", $1.ddMatchedText);
+            }
+        !}
+    | IDENT ?( grammarSpecification.symbolTable.is_known_token($1.ddMatchedText) ?)
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_symbol($1.ddMatchedText, $1.ddLocation);
+        !}
+    | IDENT ?( grammarSpecification.symbolTable.is_known_non_terminal($1.ddMatchedText) ?)
+        !{
+            $$.symbol = null;
+            error($1.ddLocation, "Non terminal \"%s\" cannot be used as precedence tag.", $1.ddMatchedText);
+        !}
+    | IDENT
+        !{
+            $$.symbol = grammarSpecification.symbolTable.new_tag($1.ddMatchedText, $1.ddLocation);
+        !}
+    .
+
+// Production rules
+production_rules: production_group
+    | production_rules production_group
+    .
+
+production_group: production_group_head production_tail_list "."
+        !{
+            foreach (productionTail; $2.productionTailList) {
+                grammarSpecification.new_production(ddArgs[1 - 1].symbol, productionTail.rightHandSide, productionTail.predicate, productionTail.action, productionTail.associativePrecedence);
+            }
+        !}
+    .
+
+production_group_head: IDENT ":" ?( grammarSpecification.symbolTable.is_known_token($1.ddMatchedText) ?)
+        !{
+            auto lineNo = grammarSpecification.symbolTable.get_declaration_point($1.ddMatchedText).line_number;
+            error($1.ddLocation, "%s: token (defined at line %s) cannot be used as left hand side", $1.ddMatchedText, lineNo);
+            $$.symbol = grammarSpecification.symbolTable.get_symbol($1.ddMatchedText, $1.ddLocation);
+        !}
+    | IDENT ":" ?( grammarSpecification.symbolTable.is_known_tag($1.ddMatchedText) ?)
+        !{
+            auto lineNo = grammarSpecification.symbolTable.get_declaration_point($1.ddMatchedText).line_number;
+            error($1.ddLocation, "%s: precedence tag (defined at line %s) cannot be used as left hand side", $1.ddMatchedText, lineNo);
+            $$.symbol = grammarSpecification.symbolTable.get_symbol($1.ddMatchedText, $1.ddLocation);
+        !}
+    | IDENT ":"
+        !{
+            if (!is_allowable_name($1.ddMatchedText)) {
+                warning($1.ddLocation, "non terminal symbol name \"%s\" may clash with generated code", $1.ddMatchedText);
+            }
+            $$.symbol = grammarSpecification.symbolTable.define_non_terminal($1.ddMatchedText, $1.ddLocation);
+        !}
+    .
+
+production_tail_list: production_tail
+        !{
+            $$.productionTailList = [$1.productionTail];
+        !}
+    | production_tail_list "|" production_tail
+        !{
+            $$.productionTailList = $1.productionTailList ~ $3.productionTail;
+        !}
+    .
+
+production_tail:
+        !{
+            $$.productionTail = ProductionTail([], AssociativePrecedence(), null, null);
+        !}
+    | action
+        !{
+            $$.productionTail = ProductionTail([], AssociativePrecedence(), null, $1.semanticAction);
+        !}
+    | predicate action
+        !{
+            $$.productionTail = ProductionTail([], AssociativePrecedence(), $1.predicate, $2.semanticAction);
+        !}
+    | predicate
+        !{
+            $$.productionTail = ProductionTail([], AssociativePrecedence(), $1.predicate, null);
+        !}
+    | symbol_list predicate tagged_precedence action
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, $3.associativePrecedence, $2.predicate, $4.semanticAction);
+        !}
+    | symbol_list predicate tagged_precedence
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, $3.associativePrecedence, $2.predicate, null);
+        !}
+    | symbol_list predicate action
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, AssociativePrecedence(), $2.predicate, $3.semanticAction);
+        !}
+    | symbol_list predicate
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, AssociativePrecedence(), $2.predicate, null);
+        !}
+    | symbol_list tagged_precedence action
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, $2.associativePrecedence, null, $3.semanticAction);
+        !}
+    | symbol_list tagged_precedence
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, $2.associativePrecedence);
+        !}
+    | symbol_list action
+        !{
+            $$.productionTail = ProductionTail($1.symbolList, AssociativePrecedence(), null, $2.semanticAction);
+        !}
+    | symbol_list
+        !{
+            $$.productionTail = ProductionTail($1.symbolList);
+        !}
+    .
+
+action: ACTION
+        !{
+            $$.semanticAction = $1.ddMatchedText[2 .. $ - 2];
+        !}
+    .
+
+predicate: PREDICATE
+        !{
+            $$.predicate = $1.ddMatchedText[2 .. $ - 2];
+        !}
+    .
+
+tagged_precedence: "%prec" IDENT
+        !{
+            auto symbol = grammarSpecification.symbolTable.get_symbol($2.ddMatchedText, $2.ddLocation, false);
+            if (symbol is null) {
+                error($2.ddLocation, "%s: Unknown symbol.", $2.ddMatchedText);
+                $$.associativePrecedence = AssociativePrecedence();
+            } else if (symbol.type == SymbolType.nonTerminal) {
+                error($2.ddLocation, "%s: Illegal precedence tag (must be Token or Tag).", $2.ddMatchedText);
+                $$.associativePrecedence = AssociativePrecedence();
+            } else {
+                $$.associativePrecedence = symbol.associativePrecedence;
+            }
+        !}
+    | "%prec" LITERAL
+        !{
+            auto symbol = grammarSpecification.symbolTable.get_literal_token($2.ddMatchedText, $2.ddLocation);
+            if (symbol is null) {
+                $$.associativePrecedence = AssociativePrecedence();
+                error($2.ddLocation, "%s: Unknown literal token.", $2.ddMatchedText);
+            } else {
+                $$.associativePrecedence = symbol.associativePrecedence;
+            }
+        !}
+    .
+
+symbol_list: symbol
+        !{
+            $$.symbolList = [$1.symbol];
+        !}
+    | symbol_list symbol
+        !{
+            $$.symbolList = $1.symbolList ~ $2.symbol;
+        !}
+    .
+
+symbol: IDENT
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_symbol($1.ddMatchedText, $1.ddLocation, true);
+        !}
+    | LITERAL
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_literal_token($1.ddMatchedText, $1.ddLocation);
+            if ($$.symbol is null) {
+                error($1.ddLocation, "%s: unknown literal token", $1.ddMatchedText);
+            }
+        !}
+    | "%error"
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_special_symbol(SpecialSymbols.parseError);
+        !}
+    | "%lexerror"
+        !{
+            $$.symbol = grammarSpecification.symbolTable.get_special_symbol(SpecialSymbols.lexError);;
+        !}
+    .
+
+%{
+    if (!dd_parse_text(text, label)) return null;
+    return grammarSpecification;
+}
+%}
