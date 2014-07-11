@@ -468,6 +468,7 @@ class TokenInputRange(H) {
         while (index_location.index < input_text.length) {
             // skips have highest priority
             incr_index_location(analyser.get_skippable_count(input_text[index_location.index .. $]));
+            if (index_location.index >= input_text.length) break;
 
             // The reported location is for the first character of the match
             auto location = index_location;
