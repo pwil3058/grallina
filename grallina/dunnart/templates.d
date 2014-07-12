@@ -44,14 +44,16 @@ mixin template DDParserSupport() {
         size_t length;
     }
 
-    DDParseAction dd_shift(DDParserState dd_state)
-    {
-        return DDParseAction(DDParseActionType.shift, dd_state);
+    template dd_shift(DDParserState dd_state) {
+        enum dd_shift = DDParseAction(DDParseActionType.shift, dd_state);
     }
 
-    DDParseAction dd_reduce(DDProduction dd_production)
-    {
-        return DDParseAction(DDParseActionType.reduce, dd_production);
+    template dd_reduce(DDProduction dd_production) {
+        enum dd_reduce = DDParseAction(DDParseActionType.reduce, dd_production);
+    }
+
+    template dd_accept() {
+        enum dd_accept = DDParseAction(DDParseActionType.accept, 0);
     }
 
     DDParseAction dd_error(DDToken[] expected_tokens)
@@ -59,11 +61,6 @@ mixin template DDParserSupport() {
         auto action = DDParseAction(DDParseActionType.error);
         action.expected_tokens = expected_tokens;
         return action;
-    }
-
-    DDParseAction dd_accept()
-    {
-        return DDParseAction(DDParseActionType.accept, 0);
     }
 
     class DDSyntaxErrorData {

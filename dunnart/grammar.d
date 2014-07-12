@@ -398,7 +398,7 @@ class ParserState {
         string expected_tokens_list;
         auto shift_token_set = extract_key_set(shift_list);
         foreach (token; shift_token_set) {
-            code_text_lines ~= format("case %s: return dd_shift(%s);", token.name, shift_list[token].id);
+            code_text_lines ~= format("case %s: return dd_shift!(%s);", token.name, shift_list[token].id);
         }
         auto item_keys = grammar_items.get_reducible_keys();
         if (item_keys.cardinality == 0) {
@@ -435,13 +435,13 @@ class ParserState {
                 if (trivially_true(keys[0].production.predicate)) {
                     assert(keys.length == 1);
                     if (keys[0].production.id == 0) {
-                        code_text_lines ~= "    return dd_accept;";
+                        code_text_lines ~= "    return dd_accept!();";
                     } else {
-                        code_text_lines ~= format("    return dd_reduce(%s); // %s", keys[0].production.id, keys[0].production);
+                        code_text_lines ~= format("    return dd_reduce!(%s); // %s", keys[0].production.id, keys[0].production);
                     }
                 } else {
                     code_text_lines ~= format("    if (%s) {", keys[0].production.expanded_predicate);
-                    code_text_lines ~= format("        return dd_reduce(%s); // %s", keys[0].production.id, keys[0].production);
+                    code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[0].production.id, keys[0].production);
                     if (keys.length == 1) {
                         code_text_lines ~= "    } else {";
                         code_text_lines ~= format("        return dd_error([%s]);", expected_tokens_list);
@@ -451,19 +451,19 @@ class ParserState {
                     for (auto i = 1; i < keys.length - 1; i++) {
                         assert(!trivially_true(keys[i].production.predicate));
                         code_text_lines ~= format("    } else if (%s) {", keys[i].production.expanded_predicate);
-                        code_text_lines ~= format("        return dd_reduce(%s); // %s", keys[i].production.id, keys[i].production);
+                        code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[i].production.id, keys[i].production);
                     }
                     if (trivially_true(keys[$ - 1].production.predicate)) {
                         code_text_lines ~= "    } else {";
                         if (keys[$ - 1].production.id == 0) {
                             code_text_lines ~= "    return dd_accept;";
                         } else {
-                            code_text_lines ~= format("        return dd_reduce(%s); // %s", keys[$ - 1].production.id, keys[$ - 1].production);
+                            code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[$ - 1].production.id, keys[$ - 1].production);
                         }
                         code_text_lines ~= "    }";
                     } else {
                         code_text_lines ~= format("    } else if (%s) {", keys[$ - 1].production.expanded_predicate);
-                        code_text_lines ~= format("        return dd_reduce(%s); // %s", keys[$ - 1].production.id, keys[$ - 1].production);
+                        code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[$ - 1].production.id, keys[$ - 1].production);
                         code_text_lines ~= "    } else {";
                         code_text_lines ~= format("        return dd_error([%s]);", expected_tokens_list);
                         code_text_lines ~= "    }";

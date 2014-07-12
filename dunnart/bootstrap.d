@@ -757,9 +757,9 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     with (DDToken) switch(dd_current_state) {
     case 0:
         switch (dd_next_token) {
-        case DCODE: return dd_shift(3);
+        case DCODE: return dd_shift!(3);
         case TOKEN, FIELD:
-            return dd_reduce(2); // preamble: <empty>
+            return dd_reduce!(2); // preamble: <empty>
         default:
             return dd_error([TOKEN, FIELD, DCODE]);
         }
@@ -767,7 +767,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 1:
         switch (dd_next_token) {
         case ddEND:
-            return dd_accept;
+            return dd_accept!();
         default:
             return dd_error([ddEND]);
         }
@@ -775,31 +775,31 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 2:
         switch (dd_next_token) {
         case TOKEN, FIELD:
-            return dd_reduce(8); // field_definitions: <empty>
+            return dd_reduce!(8); // field_definitions: <empty>
         default:
             return dd_error([TOKEN, FIELD]);
         }
         break;
     case 3:
         switch (dd_next_token) {
-        case DCODE: return dd_shift(6);
+        case DCODE: return dd_shift!(6);
         case TOKEN, FIELD:
-            return dd_reduce(3); // preamble: DCODE
+            return dd_reduce!(3); // preamble: DCODE
         default:
             return dd_error([TOKEN, FIELD, DCODE]);
         }
         break;
     case 4:
         switch (dd_next_token) {
-        case NEWSECTION: return dd_shift(7);
+        case NEWSECTION: return dd_shift!(7);
         default:
             return dd_error([NEWSECTION]);
         }
         break;
     case 5:
         switch (dd_next_token) {
-        case TOKEN: return dd_shift(12);
-        case FIELD: return dd_shift(10);
+        case TOKEN: return dd_shift!(12);
+        case FIELD: return dd_shift!(10);
         default:
             return dd_error([TOKEN, FIELD]);
         }
@@ -807,23 +807,23 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 6:
         switch (dd_next_token) {
         case TOKEN, FIELD:
-            return dd_reduce(4); // preamble: DCODE DCODE
+            return dd_reduce!(4); // preamble: DCODE DCODE
         default:
             return dd_error([TOKEN, FIELD]);
         }
         break;
     case 7:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(16);
+        case IDENT: return dd_shift!(16);
         default:
             return dd_error([IDENT]);
         }
         break;
     case 8:
         switch (dd_next_token) {
-        case TOKEN: return dd_shift(12);
+        case TOKEN: return dd_shift!(12);
         case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(26); // skip_definitions: <empty>
+            return dd_reduce!(26); // skip_definitions: <empty>
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -831,14 +831,14 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 9:
         switch (dd_next_token) {
         case TOKEN, FIELD:
-            return dd_reduce(9); // field_definitions: field_definitions field_definition
+            return dd_reduce!(9); // field_definitions: field_definitions field_definition
         default:
             return dd_error([TOKEN, FIELD]);
         }
         break;
     case 10:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(20);
+        case IDENT: return dd_shift!(20);
         default:
             return dd_error([IDENT]);
         }
@@ -846,25 +846,25 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 11:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(18); // token_definitions: token_definition
+            return dd_reduce!(18); // token_definitions: token_definition
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 12:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(23);
-        case FIELDNAME: return dd_shift(22);
+        case IDENT: return dd_shift!(23);
+        case FIELDNAME: return dd_shift!(22);
         default:
             return dd_error([IDENT, FIELDNAME]);
         }
         break;
     case 13:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(16);
-        case DCODE: return dd_shift(25);
+        case IDENT: return dd_shift!(16);
+        case DCODE: return dd_shift!(25);
         case ddEND:
-            return dd_reduce(5); // coda: <empty>
+            return dd_reduce!(5); // coda: <empty>
         default:
             return dd_error([ddEND, IDENT, DCODE]);
         }
@@ -872,37 +872,37 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 14:
         switch (dd_next_token) {
         case ddEND, IDENT, DCODE:
-            return dd_reduce(40); // production_rules: production_group
+            return dd_reduce!(40); // production_rules: production_group
         default:
             return dd_error([ddEND, IDENT, DCODE]);
         }
         break;
     case 15:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(36);
-        case ERROR: return dd_shift(37);
-        case LEXERROR: return dd_shift(38);
-        case IDENT: return dd_shift(35);
-        case PREDICATE: return dd_shift(33);
-        case ACTION: return dd_shift(32);
+        case LITERAL: return dd_shift!(36);
+        case ERROR: return dd_shift!(37);
+        case LEXERROR: return dd_shift!(38);
+        case IDENT: return dd_shift!(35);
+        case PREDICATE: return dd_shift!(33);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(48); // production_tail: <empty>
+            return dd_reduce!(48); // production_tail: <empty>
         default:
             return dd_error([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
         break;
     case 16:
         switch (dd_next_token) {
-        case COLON: return dd_shift(39);
+        case COLON: return dd_shift!(39);
         default:
             return dd_error([COLON]);
         }
         break;
     case 17:
         switch (dd_next_token) {
-        case SKIP: return dd_shift(42);
+        case SKIP: return dd_shift!(42);
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce(29); // precedence_definitions: <empty>
+            return dd_reduce!(29); // precedence_definitions: <empty>
         default:
             return dd_error([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -910,14 +910,14 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 18:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(19); // token_definitions: token_definitions token_definition
+            return dd_reduce!(19); // token_definitions: token_definitions token_definition
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 19:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(44);
+        case IDENT: return dd_shift!(44);
         default:
             return dd_error([IDENT]);
         }
@@ -926,9 +926,9 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case IDENT:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(12); // field_type: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+                return dd_reduce!(12); // field_type: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(13); // field_type: IDENT
+                return dd_reduce!(13); // field_type: IDENT
             }
         default:
             return dd_error([IDENT]);
@@ -936,15 +936,15 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         break;
     case 21:
         switch (dd_next_token) {
-        case REGEX: return dd_shift(46);
-        case LITERAL: return dd_shift(47);
+        case REGEX: return dd_shift!(46);
+        case LITERAL: return dd_shift!(47);
         default:
             return dd_error([REGEX, LITERAL]);
         }
         break;
     case 22:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(23);
+        case IDENT: return dd_shift!(23);
         default:
             return dd_error([IDENT]);
         }
@@ -953,9 +953,9 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case REGEX, LITERAL:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(22); // new_token_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+                return dd_reduce!(22); // new_token_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(23); // new_token_name: IDENT
+                return dd_reduce!(23); // new_token_name: IDENT
             }
         default:
             return dd_error([REGEX, LITERAL]);
@@ -964,7 +964,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 24:
         switch (dd_next_token) {
         case ddEND:
-            return dd_reduce(1); // specification: preamble definitions "%%" production_rules coda
+            return dd_reduce!(1); // specification: preamble definitions "%%" production_rules coda
         default:
             return dd_error([ddEND]);
         }
@@ -972,7 +972,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 25:
         switch (dd_next_token) {
         case ddEND:
-            return dd_reduce(6); // coda: DCODE
+            return dd_reduce!(6); // coda: DCODE
         default:
             return dd_error([ddEND]);
         }
@@ -980,15 +980,15 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 26:
         switch (dd_next_token) {
         case ddEND, IDENT, DCODE:
-            return dd_reduce(41); // production_rules: production_rules production_group
+            return dd_reduce!(41); // production_rules: production_rules production_group
         default:
             return dd_error([ddEND, IDENT, DCODE]);
         }
         break;
     case 27:
         switch (dd_next_token) {
-        case VBAR: return dd_shift(50);
-        case DOT: return dd_shift(49);
+        case VBAR: return dd_shift!(50);
+        case DOT: return dd_shift!(49);
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -996,7 +996,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 28:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(46); // production_tail_list: production_tail
+            return dd_reduce!(46); // production_tail_list: production_tail
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -1004,31 +1004,31 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 29:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(49); // production_tail: action
+            return dd_reduce!(49); // production_tail: action
         default:
             return dd_error([VBAR, DOT]);
         }
         break;
     case 30:
         switch (dd_next_token) {
-        case ACTION: return dd_shift(32);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(51); // production_tail: predicate
+            return dd_reduce!(51); // production_tail: predicate
         default:
             return dd_error([VBAR, DOT, ACTION]);
         }
         break;
     case 31:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(36);
-        case PRECEDENCE: return dd_shift(55);
-        case ERROR: return dd_shift(37);
-        case LEXERROR: return dd_shift(38);
-        case IDENT: return dd_shift(35);
-        case PREDICATE: return dd_shift(33);
-        case ACTION: return dd_shift(32);
+        case LITERAL: return dd_shift!(36);
+        case PRECEDENCE: return dd_shift!(55);
+        case ERROR: return dd_shift!(37);
+        case LEXERROR: return dd_shift!(38);
+        case IDENT: return dd_shift!(35);
+        case PREDICATE: return dd_shift!(33);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(59); // production_tail: symbol_list
+            return dd_reduce!(59); // production_tail: symbol_list
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1036,7 +1036,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 32:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(60); // action: ACTION
+            return dd_reduce!(60); // action: ACTION
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -1044,7 +1044,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 33:
         switch (dd_next_token) {
         case PRECEDENCE, VBAR, DOT, ACTION:
-            return dd_reduce(61); // predicate: PREDICATE
+            return dd_reduce!(61); // predicate: PREDICATE
         default:
             return dd_error([PRECEDENCE, VBAR, DOT, ACTION]);
         }
@@ -1052,7 +1052,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 34:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(64); // symbol_list: symbol
+            return dd_reduce!(64); // symbol_list: symbol
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1060,7 +1060,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 35:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(66); // symbol: IDENT
+            return dd_reduce!(66); // symbol: IDENT
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1068,7 +1068,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 36:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(67); // symbol: LITERAL
+            return dd_reduce!(67); // symbol: LITERAL
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1076,7 +1076,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 37:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(68); // symbol: "%error"
+            return dd_reduce!(68); // symbol: "%error"
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1084,7 +1084,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 38:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(69); // symbol: "%lexerror"
+            return dd_reduce!(69); // symbol: "%lexerror"
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1093,11 +1093,11 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
             if ( grammar_specification.symbol_table.is_known_token(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
-                return dd_reduce(43); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
+                return dd_reduce!(43); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
             } else if ( grammar_specification.symbol_table.is_known_tag(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
-                return dd_reduce(44); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_tag($1.dd_matched_text)  ?)
+                return dd_reduce!(44); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_tag($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(45); // production_group_head: IDENT ":"
+                return dd_reduce!(45); // production_group_head: IDENT ":"
             }
         default:
             return dd_error([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
@@ -1105,11 +1105,11 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         break;
     case 40:
         switch (dd_next_token) {
-        case LEFT: return dd_shift(58);
-        case RIGHT: return dd_shift(59);
-        case NONASSOC: return dd_shift(60);
+        case LEFT: return dd_shift!(58);
+        case RIGHT: return dd_shift!(59);
+        case NONASSOC: return dd_shift!(60);
         case NEWSECTION:
-            return dd_reduce(7); // definitions: field_definitions token_definitions skip_definitions precedence_definitions
+            return dd_reduce!(7); // definitions: field_definitions token_definitions skip_definitions precedence_definitions
         default:
             return dd_error([LEFT, RIGHT, NONASSOC, NEWSECTION]);
         }
@@ -1117,23 +1117,23 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 41:
         switch (dd_next_token) {
         case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(27); // skip_definitions: skip_definitions skip_definition
+            return dd_reduce!(27); // skip_definitions: skip_definitions skip_definition
         default:
             return dd_error([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 42:
         switch (dd_next_token) {
-        case REGEX: return dd_shift(61);
+        case REGEX: return dd_shift!(61);
         default:
             return dd_error([REGEX]);
         }
         break;
     case 43:
         switch (dd_next_token) {
-        case IDENT: return dd_shift(63);
+        case IDENT: return dd_shift!(63);
         case TOKEN, FIELD:
-            return dd_reduce(10); // field_definition: "%field" field_type field_name
+            return dd_reduce!(10); // field_definition: "%field" field_type field_name
         default:
             return dd_error([TOKEN, FIELD, IDENT]);
         }
@@ -1142,9 +1142,9 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case TOKEN, FIELD, IDENT:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(14); // field_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+                return dd_reduce!(14); // field_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(15); // field_name: IDENT
+                return dd_reduce!(15); // field_name: IDENT
             }
         default:
             return dd_error([TOKEN, FIELD, IDENT]);
@@ -1153,7 +1153,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 45:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(20); // token_definition: "%token" new_token_name pattern
+            return dd_reduce!(20); // token_definition: "%token" new_token_name pattern
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -1161,7 +1161,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 46:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(24); // pattern: REGEX
+            return dd_reduce!(24); // pattern: REGEX
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -1169,15 +1169,15 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 47:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(25); // pattern: LITERAL
+            return dd_reduce!(25); // pattern: LITERAL
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 48:
         switch (dd_next_token) {
-        case REGEX: return dd_shift(46);
-        case LITERAL: return dd_shift(47);
+        case REGEX: return dd_shift!(46);
+        case LITERAL: return dd_shift!(47);
         default:
             return dd_error([REGEX, LITERAL]);
         }
@@ -1185,21 +1185,21 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 49:
         switch (dd_next_token) {
         case ddEND, IDENT, DCODE:
-            return dd_reduce(42); // production_group: production_group_head production_tail_list "."
+            return dd_reduce!(42); // production_group: production_group_head production_tail_list "."
         default:
             return dd_error([ddEND, IDENT, DCODE]);
         }
         break;
     case 50:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(36);
-        case ERROR: return dd_shift(37);
-        case LEXERROR: return dd_shift(38);
-        case IDENT: return dd_shift(35);
-        case PREDICATE: return dd_shift(33);
-        case ACTION: return dd_shift(32);
+        case LITERAL: return dd_shift!(36);
+        case ERROR: return dd_shift!(37);
+        case LEXERROR: return dd_shift!(38);
+        case IDENT: return dd_shift!(35);
+        case PREDICATE: return dd_shift!(33);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(48); // production_tail: <empty>
+            return dd_reduce!(48); // production_tail: <empty>
         default:
             return dd_error([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1207,26 +1207,26 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 51:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(50); // production_tail: predicate action
+            return dd_reduce!(50); // production_tail: predicate action
         default:
             return dd_error([VBAR, DOT]);
         }
         break;
     case 52:
         switch (dd_next_token) {
-        case PRECEDENCE: return dd_shift(55);
-        case ACTION: return dd_shift(32);
+        case PRECEDENCE: return dd_shift!(55);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(55); // production_tail: symbol_list predicate
+            return dd_reduce!(55); // production_tail: symbol_list predicate
         default:
             return dd_error([PRECEDENCE, VBAR, DOT, ACTION]);
         }
         break;
     case 53:
         switch (dd_next_token) {
-        case ACTION: return dd_shift(32);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(57); // production_tail: symbol_list tagged_precedence
+            return dd_reduce!(57); // production_tail: symbol_list tagged_precedence
         default:
             return dd_error([VBAR, DOT, ACTION]);
         }
@@ -1234,15 +1234,15 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 54:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(58); // production_tail: symbol_list action
+            return dd_reduce!(58); // production_tail: symbol_list action
         default:
             return dd_error([VBAR, DOT]);
         }
         break;
     case 55:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(70);
-        case IDENT: return dd_shift(69);
+        case LITERAL: return dd_shift!(70);
+        case IDENT: return dd_shift!(69);
         default:
             return dd_error([LITERAL, IDENT]);
         }
@@ -1250,7 +1250,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 56:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce(65); // symbol_list: symbol_list symbol
+            return dd_reduce!(65); // symbol_list: symbol_list symbol
         default:
             return dd_error([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1258,31 +1258,31 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 57:
         switch (dd_next_token) {
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce(30); // precedence_definitions: precedence_definitions precedence_definition
+            return dd_reduce!(30); // precedence_definitions: precedence_definitions precedence_definition
         default:
             return dd_error([LEFT, RIGHT, NONASSOC, NEWSECTION]);
         }
         break;
     case 58:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         default:
             return dd_error([LITERAL, IDENT]);
         }
         break;
     case 59:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         default:
             return dd_error([LITERAL, IDENT]);
         }
         break;
     case 60:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         default:
             return dd_error([LITERAL, IDENT]);
         }
@@ -1290,7 +1290,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 61:
         switch (dd_next_token) {
         case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(28); // skip_definition: "%skip" REGEX
+            return dd_reduce!(28); // skip_definition: "%skip" REGEX
         default:
             return dd_error([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -1298,7 +1298,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 62:
         switch (dd_next_token) {
         case TOKEN, FIELD:
-            return dd_reduce(11); // field_definition: "%field" field_type field_name field_conversion_function
+            return dd_reduce!(11); // field_definition: "%field" field_type field_name field_conversion_function
         default:
             return dd_error([TOKEN, FIELD]);
         }
@@ -1307,9 +1307,9 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case TOKEN, FIELD:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(16); // field_conversion_function: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+                return dd_reduce!(16); // field_conversion_function: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(17); // field_conversion_function: IDENT
+                return dd_reduce!(17); // field_conversion_function: IDENT
             }
         default:
             return dd_error([TOKEN, FIELD]);
@@ -1318,7 +1318,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 64:
         switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce(21); // token_definition: "%token" FIELDNAME new_token_name pattern
+            return dd_reduce!(21); // token_definition: "%token" FIELDNAME new_token_name pattern
         default:
             return dd_error([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
@@ -1326,16 +1326,16 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 65:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(47); // production_tail_list: production_tail_list "|" production_tail
+            return dd_reduce!(47); // production_tail_list: production_tail_list "|" production_tail
         default:
             return dd_error([VBAR, DOT]);
         }
         break;
     case 66:
         switch (dd_next_token) {
-        case ACTION: return dd_shift(32);
+        case ACTION: return dd_shift!(32);
         case VBAR, DOT:
-            return dd_reduce(53); // production_tail: symbol_list predicate tagged_precedence
+            return dd_reduce!(53); // production_tail: symbol_list predicate tagged_precedence
         default:
             return dd_error([VBAR, DOT, ACTION]);
         }
@@ -1343,7 +1343,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 67:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(54); // production_tail: symbol_list predicate action
+            return dd_reduce!(54); // production_tail: symbol_list predicate action
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -1351,7 +1351,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 68:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(56); // production_tail: symbol_list tagged_precedence action
+            return dd_reduce!(56); // production_tail: symbol_list tagged_precedence action
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -1359,7 +1359,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 69:
         switch (dd_next_token) {
         case VBAR, DOT, ACTION:
-            return dd_reduce(62); // tagged_precedence: "%prec" IDENT
+            return dd_reduce!(62); // tagged_precedence: "%prec" IDENT
         default:
             return dd_error([VBAR, DOT, ACTION]);
         }
@@ -1367,17 +1367,17 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 70:
         switch (dd_next_token) {
         case VBAR, DOT, ACTION:
-            return dd_reduce(63); // tagged_precedence: "%prec" LITERAL
+            return dd_reduce!(63); // tagged_precedence: "%prec" LITERAL
         default:
             return dd_error([VBAR, DOT, ACTION]);
         }
         break;
     case 71:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce(31); // precedence_definition: "%left" tag_list
+            return dd_reduce!(31); // precedence_definition: "%left" tag_list
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
@@ -1385,7 +1385,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 72:
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
-            return dd_reduce(34); // tag_list: tag
+            return dd_reduce!(34); // tag_list: tag
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
@@ -1393,7 +1393,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 73:
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
-            return dd_reduce(36); // tag: LITERAL
+            return dd_reduce!(36); // tag: LITERAL
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
@@ -1402,11 +1402,11 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
             if ( grammar_specification.symbol_table.is_known_token(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(37); // tag: IDENT ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
+                return dd_reduce!(37); // tag: IDENT ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
             } else if ( grammar_specification.symbol_table.is_known_non_terminal(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce(38); // tag: IDENT ?(  grammar_specification.symbol_table.is_known_non_terminal($1.dd_matched_text)  ?)
+                return dd_reduce!(38); // tag: IDENT ?(  grammar_specification.symbol_table.is_known_non_terminal($1.dd_matched_text)  ?)
             } else {
-                return dd_reduce(39); // tag: IDENT
+                return dd_reduce!(39); // tag: IDENT
             }
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
@@ -1414,20 +1414,20 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
         break;
     case 75:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce(32); // precedence_definition: "%right" tag_list
+            return dd_reduce!(32); // precedence_definition: "%right" tag_list
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
         break;
     case 76:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift(73);
-        case IDENT: return dd_shift(74);
+        case LITERAL: return dd_shift!(73);
+        case IDENT: return dd_shift!(74);
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce(33); // precedence_definition: "%nonassoc" tag_list
+            return dd_reduce!(33); // precedence_definition: "%nonassoc" tag_list
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
@@ -1435,7 +1435,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 77:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce(52); // production_tail: symbol_list predicate tagged_precedence action
+            return dd_reduce!(52); // production_tail: symbol_list predicate tagged_precedence action
         default:
             return dd_error([VBAR, DOT]);
         }
@@ -1443,7 +1443,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next
     case 78:
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
-            return dd_reduce(35); // tag_list: tag_list tag
+            return dd_reduce!(35); // tag_list: tag_list tag
         default:
             return dd_error([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
