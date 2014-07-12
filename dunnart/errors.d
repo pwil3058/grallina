@@ -14,5 +14,5 @@ import std.file;
 string extract_file_exception_msg(FileException e)
 {
     auto firstLine = splitLines(format("%s", e))[0];
-    return firstLine[indexOf(firstLine, ": ") + 2 .. $];
+    return firstLine[indexOf(firstLine, ": ") + 2..$];
 }

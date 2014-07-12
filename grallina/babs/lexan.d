@@ -220,7 +220,7 @@ private class LiteralMatchNode(H) {
             lexeme_index = str_lexeme_index;
         } else {
             lexeme_index = -1;
-            tails[str[0]] = new LiteralMatchNode(str[1 .. $], str_lexeme_index);
+            tails[str[0]] = new LiteralMatchNode(str[1..$], str_lexeme_index);
         }
     }
 
@@ -230,9 +230,9 @@ private class LiteralMatchNode(H) {
             if (lexeme_index >= 0) throw new LexanException("");
             lexeme_index = nt_lexeme_index;
         } else if (new_tail[0] in tails) {
-            tails[new_tail[0]].add_tail(new_tail[1 .. $], nt_lexeme_index);
+            tails[new_tail[0]].add_tail(new_tail[1..$], nt_lexeme_index);
         } else {
-            tails[new_tail[0]] = new LiteralMatchNode(new_tail[1 .. $], nt_lexeme_index);
+            tails[new_tail[0]] = new LiteralMatchNode(new_tail[1..$], nt_lexeme_index);
         }
     }
 }
@@ -251,12 +251,12 @@ public:
             auto literal = lexeme.pattern;
             if (literal[0] in literals) {
                 try {
-                    literals[literal[0]].add_tail(literal[1 .. $], i);
+                    literals[literal[0]].add_tail(literal[1..$], i);
                 } catch (LexanException edata) {
                     throw new LexanDuplicateLiteralPattern(literal);
                 }
             } else {
-                literals[literal[0]] = new LiteralMatchNode!(H)(literal[1 .. $], i);
+                literals[literal[0]] = new LiteralMatchNode!(H)(literal[1..$], i);
             }
         }
     }
@@ -285,15 +285,15 @@ unittest {
     foreach(test_string; test_strings) {
         assert(lm.get_longest_match(test_string).is_valid);
         assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
-        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).is_valid == true);
-        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).is_valid == true);
+        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length..$]).is_valid == true);
+        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length..$]).is_valid == true);
         assert(lm.get_longest_match(test_string ~ rubbish).is_valid == true);
     }
     foreach(test_string; test_strings) {
         assert(lm.get_longest_match(test_string).pattern == test_string);
         assert(lm.get_longest_match(rubbish ~ test_string).is_valid == false);
-        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length .. $]).pattern == test_string);
-        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length .. $]).pattern == test_string);
+        assert(lm.get_longest_match((rubbish ~ test_string)[rubbish.length..$]).pattern == test_string);
+        assert(lm.get_longest_match((rubbish ~ test_string ~ rubbish)[rubbish.length..$]).pattern == test_string);
         assert(lm.get_longest_match(test_string ~ rubbish).pattern == test_string);
     }
     auto bad_strings = test_strings ~ "gamma";
@@ -438,7 +438,7 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
         while (index < text.length) {
             auto skips = 0;
             foreach (skip_re; skip_re_list) {
-                auto m = match(text[index .. $], skip_re);
+                auto m = match(text[index..$], skip_re);
                 if (!m.empty) {
                     index += m.hit.length;
                     skips++;
@@ -481,12 +481,12 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
             // Assume that the front of the text is invalid
             // TODO: put in precondition to that effect
             index++;
-            if (literal_matcher.get_longest_match(text[index .. $]).is_valid) break;
+            if (literal_matcher.get_longest_match(text[index..$]).is_valid) break;
             foreach (re_lexeme; re_lexemes) {
-                if (match(text[index .. $], re_lexeme.re)) break mainloop;
+                if (match(text[index..$], re_lexeme.re)) break mainloop;
             }
             foreach (skip_re; skip_re_list) {
-                if (match(text[index .. $], skip_re)) break mainloop;
+                if (match(text[index..$], skip_re)) break mainloop;
             }
         }
         return index;
@@ -529,7 +529,7 @@ class TokenInputRange(H) {
                     index_location.offset++;
                 }
             } else {
-                if (newline == input_text[i .. i + newline.length]) {
+                if (newline == input_text[i..i + newline.length]) {
                     index_location.line_number++;
                     index_location.offset = 0;
                 } else {
@@ -544,16 +544,16 @@ class TokenInputRange(H) {
     {
         while (index_location.index < input_text.length) {
             // skips have highest priority
-            incr_index_location(analyser.get_skippable_count(input_text[index_location.index .. $]));
+            incr_index_location(analyser.get_skippable_count(input_text[index_location.index..$]));
             if (index_location.index >= input_text.length) break;
 
             // The reported location is for the first character of the match
             auto location = index_location;
 
             // Find longest match found by literal match or regex
-            auto llm = analyser.get_longest_literal_match(input_text[index_location.index .. $]);
+            auto llm = analyser.get_longest_literal_match(input_text[index_location.index..$]);
 
-            auto lrem = analyser.get_longest_regex_match(input_text[index_location.index .. $]);
+            auto lrem = analyser.get_longest_regex_match(input_text[index_location.index..$]);
 
             if (llm.is_valid && (lrem.length == 0 || llm.length >= lrem[0].length)) {
                 // if the matches are of equal length literal wins
@@ -568,8 +568,8 @@ class TokenInputRange(H) {
             } else {
                 // Failure: send back the offending character(s) and location
                 auto start = index_location.index;
-                incr_index_location(analyser.distance_to_next_valid_input(input_text[index_location.index .. $]));
-                return new Token!(H)(input_text[start .. index_location.index], location);
+                incr_index_location(analyser.distance_to_next_valid_input(input_text[index_location.index..$]));
+                return new Token!(H)(input_text[start..index_location.index], location);
             }
         }
 
