@@ -29,7 +29,7 @@ mixin template DDParserSupport() {
     alias ddlexan.CharLocation DDCharLocation;
 
 
-    enum DDParseActionType { shift, reduce, accept, error };
+    enum DDParseActionType { shift, reduce, accept };
     struct DDParseAction {
         DDParseActionType action;
         union {
@@ -56,11 +56,15 @@ mixin template DDParserSupport() {
         enum dd_accept = DDParseAction(DDParseActionType.accept, 0);
     }
 
-    DDParseAction dd_error(DDToken[] expected_tokens)
-    {
-        auto action = DDParseAction(DDParseActionType.error);
-        action.expected_tokens = expected_tokens;
-        return action;
+    class DDSyntaxError: Exception {
+        DDToken[] expected_tokens;
+
+        this(DDToken[] expected_tokens, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+        {
+            this.expected_tokens = expected_tokens;
+            string msg = format("Syntax Error: expected  %s.", expected_tokens);
+            super(msg, file, line, next);
+        }
     }
 
     class DDSyntaxErrorData {
@@ -68,7 +72,6 @@ mixin template DDParserSupport() {
         string matched_text;
         DDCharLocation location;
         DDToken[] expected_tokens;
-        uint skip_count;
 
         this(DDToken dd_token, DDAttributes dd_attrs, DDToken[] dd_token_list)
         {
@@ -127,7 +130,9 @@ mixin template DDParserSupport() {
             return str;
         }
     }
+}
 
+mixin template DDImplementParser() {
     struct DDParseStack {
         struct StackElement {
             DDSymbol symbol_id;
@@ -209,6 +214,16 @@ mixin template DDParserSupport() {
         }
 
         private
+        void do_reduce(DDProduction production_id)
+        {
+            auto productionData = dd_get_production_data(production_id);
+            auto attrs = pop(productionData.length);
+            auto nextState = dd_get_goto_state(productionData.left_hand_side, current_state);
+            push(productionData.left_hand_side, nextState);
+            dd_do_semantic_action(top_attributes, production_id, attrs);
+        }
+
+        private
         int find_viable_recovery_state(DDToken current_token)
         {
             int distance_to_viable_state = 0;
@@ -224,71 +239,33 @@ mixin template DDParserSupport() {
         }
     }
 
-    struct DDTokenStream {
-        DDAttributes current_token_attributes;
-        DDToken current_token;
-        DDTokenInputRange tokens;
-
-        this(string text, string label="")
-        {
-            tokens = dd_lexical_analyser.input_token_range(text, label);
-            get_next_token();
-        }
-
-        void get_next_token()
-        {
-            if (tokens.empty) {
-                current_token = DDToken.ddEND;
-                return;
-            }
-            auto mr = tokens.front;
-            current_token_attributes.dd_location = mr.location;
-            current_token_attributes.dd_matched_text = mr.matched_text;
-            if (mr.is_valid_match) {
-                current_token = mr.handle;
-                dd_set_attribute_value(current_token_attributes, current_token, mr.matched_text);
-            } else {
-                current_token = DDToken.ddLEXERROR;
-            }
-            tokens.popFront();
-        }
-    }
-}
-
-mixin template DDImplementParser() {
     bool dd_parse_text(string text, string label="")
     {
-        auto token_stream = DDTokenStream(text, label);
+        auto tokens = dd_lexical_analyser.input_token_range(text, label);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
-        // Error handling data
-        auto skip_count = 0;
-        while (true) with (parse_stack) with (token_stream) {
-            auto next_action = dd_get_next_action(current_state, current_token, attributes_stack);
-            final switch (next_action.action) with (DDParseActionType) {
-            case shift:
-                push(current_token, next_action.next_state, current_token_attributes);
-                get_next_token();
-                skip_count = 0; // Reset the count of tokens skipped during error recovery
-                break;
-            case reduce:
-                auto productionData = dd_get_production_data(next_action.production_id);
-                auto attrs = pop(productionData.length);
-                auto nextState = dd_get_goto_state(productionData.left_hand_side, current_state);
-                push(productionData.left_hand_side, nextState);
-                dd_do_semantic_action(top_attributes, next_action.production_id, attrs);
-                break;
-            case accept:
-                return true;
-            case error:
-                auto error_data = new DDSyntaxErrorData(current_token, current_token_attributes, next_action.expected_tokens);
-                auto distance_to_viable_state = find_viable_recovery_state(current_token);
-                while (distance_to_viable_state < 0 && current_token != DDToken.ddEND) {
-                    get_next_token();
-                    skip_count++;
-                    distance_to_viable_state = find_viable_recovery_state(current_token);
+        DDToken dd_token;
+        DDParseAction next_action;
+        with (parse_stack) with (DDParseActionType) foreach (token; tokens) {
+            dd_token = token.handle;
+        try_again:
+            try {
+                next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
+                while (next_action.action == reduce) {
+                    do_reduce(next_action.production_id);
+                    next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
                 }
-                error_data.skip_count = skip_count;
+                if (next_action.action == shift) {
+                    push(dd_token, next_action.next_state, DDAttributes(token));
+                } else if (next_action.action == accept) {
+                    return true;
+                }
+            } catch (ddlexan.LexanInvalidToken edata) {
+                dd_token = DDToken.ddLEXERROR;
+                goto try_again;
+            } catch (DDSyntaxError edata) {
+                auto error_data = new DDSyntaxErrorData(dd_token, DDAttributes(token), edata.expected_tokens);
+                auto distance_to_viable_state = find_viable_recovery_state(dd_token);
                 if (distance_to_viable_state >= 0) {
                     pop(distance_to_viable_state);
                     auto nextState = dd_get_goto_state(DDNonTerminal.ddERROR, current_state);
@@ -297,7 +274,20 @@ mixin template DDImplementParser() {
                     stderr.writeln(error_data);
                     return false;
                 }
+                goto try_again;
             }
         }
+        try {
+            with (parse_stack) with (DDParseActionType) while (true) {
+                next_action = dd_get_next_action(current_state, DDToken.ddEND, attributes_stack);
+                if (next_action.action == accept) break;
+                do_reduce(next_action.production_id);
+            }
+        } catch (DDSyntaxError edata) {
+            auto error_data = new DDSyntaxErrorData(DDToken.ddEND, DDAttributes(), edata.expected_tokens);
+            stderr.writeln(error_data);
+            return false;
+        }
+        return true;
     }
 }

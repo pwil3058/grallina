@@ -444,7 +444,7 @@ class ParserState {
                     code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[0].production.id, keys[0].production);
                     if (keys.length == 1) {
                         code_text_lines ~= "    } else {";
-                        code_text_lines ~= format("        return dd_error([%s]);", expected_tokens_list);
+                        code_text_lines ~= format("        throw new DDSyntaxError([%s]);", expected_tokens_list);
                         code_text_lines ~= "    }";
                         continue;
                     }
@@ -465,14 +465,14 @@ class ParserState {
                         code_text_lines ~= format("    } else if (%s) {", keys[$ - 1].production.expanded_predicate);
                         code_text_lines ~= format("        return dd_reduce!(%s); // %s", keys[$ - 1].production.id, keys[$ - 1].production);
                         code_text_lines ~= "    } else {";
-                        code_text_lines ~= format("        return dd_error([%s]);", expected_tokens_list);
+                        code_text_lines ~= format("        throw new DDSyntaxError([%s]);", expected_tokens_list);
                         code_text_lines ~= "    }";
                     }
                 }
             }
         }
         code_text_lines ~= "default:";
-        code_text_lines ~= format("    return dd_error([%s]);", expected_tokens_list);
+        code_text_lines ~= format("    throw new DDSyntaxError([%s]);", expected_tokens_list);
         code_text_lines ~= "}";
         return code_text_lines;
     }
@@ -897,10 +897,18 @@ class Grammar {
             foreach (field; fields) {
                 text_lines ~= format("        %s %s;", field.field_type, field.field_name);
             }
-            text_lines ~= "    }";
+            text_lines ~= "    }\n";
         } else {
-            text_lines ~= "    DDSyntaxErrorData dd_syntax_error_data;";
+            text_lines ~= "    DDSyntaxErrorData dd_syntax_error_data;\n";
         }
+        text_lines ~= "    this (ddlexan.Token!DDToken token)";
+        text_lines ~= "    {";
+        text_lines ~= "        dd_location = token.location;";
+        text_lines ~= "        dd_matched_text = token.matched_text;";
+        text_lines ~= "        if (token.is_valid_match) {";
+        text_lines ~= "            dd_set_attribute_value(this, token.handle, token.matched_text);";
+        text_lines ~= "        }";
+        text_lines ~= "    }";
         text_lines ~= "}\n\n";
         text_lines ~= "void dd_set_attribute_value(ref DDAttributes attrs, DDToken dd_token, string text)";
         text_lines ~= "{";
