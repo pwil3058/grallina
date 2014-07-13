@@ -6,7 +6,7 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-module ddlib.templates;
+module grallina.dunnart.templates;
 
 mixin template DDParserSupport() {
     import std.conv;
@@ -241,7 +241,7 @@ mixin template DDImplementParser() {
 
     bool dd_parse_text(string text, string label="")
     {
-        auto tokens = dd_lexical_analyser.input_token_range(text, label);
+        auto tokens = dd_lexical_analyser.input_token_range(text, label, DDToken.ddEND);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
         DDToken dd_token;
@@ -277,17 +277,6 @@ mixin template DDImplementParser() {
                 goto try_again;
             }
         }
-        try {
-            with (parse_stack) with (DDParseActionType) while (true) {
-                next_action = dd_get_next_action(current_state, DDToken.ddEND, attributes_stack);
-                if (next_action.action == accept) break;
-                do_reduce(next_action.production_id);
-            }
-        } catch (DDSyntaxError edata) {
-            auto error_data = new DDSyntaxErrorData(DDToken.ddEND, DDAttributes(), edata.expected_tokens);
-            stderr.writeln(error_data);
-            return false;
-        }
-        return true;
+        return false;
     }
 }
