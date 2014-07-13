@@ -398,8 +398,10 @@ interface LexicalAnalyserIfce(H) {
     LiteralLexeme!(H) get_longest_literal_match(string text);
     HandleAndText!(H)[] get_longest_regex_match(string text);
     size_t distance_to_next_valid_input(string text);
-    TokenInputRange!(H) input_token_range(string text, string label="");
-    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label="");
+    TokenInputRange!(H) input_token_range(string text, string label);
+    TokenInputRange!(H) input_token_range(string text, string label, H end_handle);
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label);
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label, H end_handle);
 }
 
 class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
@@ -492,12 +494,22 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
         return index;
     }
 
-    TokenInputRange!(H) input_token_range(string text, string label="")
+    TokenInputRange!(H) input_token_range(string text, string label)
     {
         return new TokenInputRange!(H)(this, text, label);
     }
 
-    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label="")
+    TokenInputRange!(H) input_token_range(string text, string label, H end_handle)
+    {
+        return new TokenInputRange!(H)(this, text, label, end_handle);
+    }
+
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label)
+    {
+        return new InjectableTokenInputRange!(H)(this, text, label);
+    }
+
+    InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label, H end_handle)
     {
         return new InjectableTokenInputRange!(H)(this, text, label);
     }
@@ -508,13 +520,22 @@ class TokenInputRange(H) {
     private string input_text;
     private CharLocation index_location;
     private Token!(H) current_match;
+    private H end_handle;
+    private bool send_end_of_input;
 
-    this (LexicalAnalyserIfce!(H) analyser, string text, string label="")
+    this (LexicalAnalyserIfce!(H) analyser, string text, string label)
     {
         this.analyser = analyser;
         index_location = CharLocation(0, 1, 1, label);
         input_text = text;
         current_match = advance();
+    }
+
+    this (LexicalAnalyserIfce!(H) analyser, string text, string label, H end_handle)
+    {
+        this.end_handle = end_handle;
+        this.send_end_of_input = true;
+        this(analyser, text, label);
     }
 
     private void incr_index_location(size_t length)
@@ -573,6 +594,10 @@ class TokenInputRange(H) {
             }
         }
 
+        if (send_end_of_input) {
+            send_end_of_input = false; // so we don't send multiple end tokens
+            return new Token!(H)(end_handle, "", index_location);
+        }
         return null;
     }
 
@@ -616,7 +641,7 @@ unittest {
         regex(r"^(\s+)"), // White space
     ];
     auto laspec = new LexicalAnalyser!(string, Regex!char)(lit_lexemes, re_lexemes, skip_re_list);
-    auto la = laspec.input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
+    auto la = laspec.input_token_range("if iffy\n \"quoted\" \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "");
     auto m = la.front(); la.popFront();
     assert(m.handle == "IF" && m.matched_text == "if" && m.location.line_number == 1);
     m = la.front(); la.popFront();
@@ -656,7 +681,7 @@ and some included code %{
     kllkkkl
     hl;ll
 %}
-");
+", "");
     m = la.front(); la.popFront();
     assert(m.handle == "IDENT" && m.matched_text == "some" && m.location.line_number == 2);
     m = la.front(); la.popFront();
@@ -696,7 +721,7 @@ and some included code %{
         RegexLexeme!(int, Regex!char)(7, regex(r"^(%\{(.|[\n\r])*?%\})")),
     ];
     auto ilaspec = new LexicalAnalyser!(int, Regex!char)(ilit_lexemes, ire_lexemes, skip_re_list);
-    auto ila = ilaspec.input_token_range("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}");
+    auto ila = ilaspec.input_token_range("if iffy\n \"quoted\" $! %%name \"if\" \n9 $ \tname &{ one \n two &} and so ?{on?}", "");
     auto im = ila.front(); ila.popFront();
     assert(im.handle == 0 && im.matched_text == "if" && im.location.line_number == 1);
     im = ila.front(); ila.popFront();
@@ -717,6 +742,12 @@ class InjectableTokenInputRange(H) {
     {
         this.analyser = analyser;
         token_range_stack ~= analyser.input_token_range(text, label);
+    }
+
+    this (LexicalAnalyserIfce!(H) analyser, string text, string label, H end_handle)
+    {
+        this.analyser = analyser;
+        token_range_stack ~= analyser.input_token_range(text, label, end_handle);
     }
 
     void inject(string text, string label)
