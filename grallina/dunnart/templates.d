@@ -29,31 +29,30 @@ mixin template DDParserSupport() {
     alias ddlexan.CharLocation DDCharLocation;
 
 
-    enum DDParseActionType { shift, reduce, accept };
+    enum DDParseActionType { SHIFT, REDUCE, ACCEPT };
     struct DDParseAction {
         DDParseActionType action;
         union {
             DDProduction production_id;
             DDParserState next_state;
-            DDToken[] expected_tokens;
         }
+    }
+
+    template dd_shift(DDParserState dd_state) {
+        enum dd_shift = DDParseAction(DDParseActionType.SHIFT, dd_state);
+    }
+
+    template dd_reduce(DDProduction dd_production) {
+        enum dd_reduce = DDParseAction(DDParseActionType.REDUCE, dd_production);
+    }
+
+    template dd_accept() {
+        enum dd_accept = DDParseAction(DDParseActionType.ACCEPT, 0);
     }
 
     struct DDProductionData {
         DDNonTerminal left_hand_side;
         size_t length;
-    }
-
-    template dd_shift(DDParserState dd_state) {
-        enum dd_shift = DDParseAction(DDParseActionType.shift, dd_state);
-    }
-
-    template dd_reduce(DDProduction dd_production) {
-        enum dd_reduce = DDParseAction(DDParseActionType.reduce, dd_production);
-    }
-
-    template dd_accept() {
-        enum dd_accept = DDParseAction(DDParseActionType.accept, 0);
     }
 
     class DDSyntaxError: Exception {
@@ -216,7 +215,7 @@ mixin template DDImplementParser() {
         }
 
         private
-        void do_reduce(DDProduction production_id)
+        void reduce(DDProduction production_id)
         {
             auto productionData = dd_get_production_data(production_id);
             auto attrs = pop(productionData.length);
@@ -264,13 +263,13 @@ mixin template DDImplementParser() {
             }
             try {
                 next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
-                while (next_action.action == reduce) {
-                    do_reduce(next_action.production_id);
+                while (next_action.action == REDUCE) {
+                    reduce(next_action.production_id);
                     next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
                 }
-                if (next_action.action == shift) {
+                if (next_action.action == SHIFT) {
                     push(dd_token, next_action.next_state, DDAttributes(token));
-                } else if (next_action.action == accept) {
+                } else if (next_action.action == ACCEPT) {
                     return true;
                 }
             } catch (ddlexan.LexanInvalidToken edata) {
