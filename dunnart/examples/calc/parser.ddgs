@@ -1,7 +1,7 @@
 %{
 import std.stdio;
 double[string] variables;
-enum Errors { undefinedVariables = 1, divideByZero = 2, syntaxError = 4 };
+enum Errors { undefinedVariables = 1, divideByZero = 2, syntaxError = 4, lexError = 8 };
 uint errors;
 
 void report_errors()
@@ -15,6 +15,9 @@ void report_errors()
     }
     if (errors & Errors.syntaxError) {
         report ~= " \"Syntax Errors\"";
+    }
+    if (errors & Errors.lexError) {
+        report ~= " \"Lexical Errors\"";
     }
     stderr.writeln(report);
 }
@@ -48,6 +51,7 @@ line: setup expr ?(errors > 0?) !{report_errors();!}
     | setup ID "=" expr !{report_errors();!}
     | line EOL line
     | line EOL
+    //| %lexerror !{errors |= Errors.lexError;!}
     | %error !{errors |= Errors.syntaxError;!}
     .
 
@@ -72,4 +76,5 @@ expr: expr "+" expr ?($1.value == 0?) !{$$.value = $3.value;!}
     | NUMBER !{$$.value = $1.value;!}
     | ID ?($1.id in variables?) !{$$.value = variables[$1.id];!}
     | ID !{errors |= Errors.undefinedVariables; $$.value = 0;!}
+    | %lexerror !{errors |= Errors.syntaxError;!}
     .
