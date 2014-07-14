@@ -827,7 +827,7 @@ class Grammar {
     {
         // TODO: determine type for DDSymbol from maximum symbol id
         string[] text_lines = ["alias ushort DDSymbol;\n"];
-        text_lines ~= "enum DDToken : DDSymbol {";
+        text_lines ~= "enum DDHandle : DDSymbol {";
         foreach (token; spec.symbol_table.get_special_tokens_ordered()) {
             text_lines ~= format("    %s = %s,", token.name, token.id);
         }
@@ -836,9 +836,9 @@ class Grammar {
             text_lines ~= format("    %s = %s,", token.name, token.id);
         }
         text_lines ~= "}\n";
-        text_lines ~= "string dd_literal_token_string(DDToken dd_token)";
+        text_lines ~= "string dd_literal_token_string(DDHandle dd_token)";
         text_lines ~= "{";
-        text_lines ~= "    with (DDToken) switch (dd_token) {";
+        text_lines ~= "    with (DDHandle) switch (dd_token) {";
         foreach (token; ordered_tokens) {
             if (token.pattern[0] == '"') {
                 text_lines ~= format("    case %s: return %s; break;", token.name, token.pattern);
@@ -866,13 +866,13 @@ class Grammar {
         text_lines ~= "    static auto dd_lit_lexemes = [";
         foreach (token; spec.symbol_table.get_tokens_ordered()) {
             if (!(token.pattern[0] == '"' && token.pattern[$-1] == '"')) continue;
-            text_lines ~= format("        DDLiteralLexeme(DDToken.%s, %s),", token.name, token.pattern);
+            text_lines ~= format("        DDLiteralLexeme(DDHandle.%s, %s),", token.name, token.pattern);
         }
         text_lines ~= "    ];\n";
         text_lines ~= "    static auto dd_regex_lexemes = [";
         foreach (token; spec.symbol_table.get_tokens_ordered()) {
             if ((token.pattern[0] == '"' && token.pattern[$-1] == '"')) continue;
-            text_lines ~= format("        DDRegexLexeme!(DDToken.%s, %s),", token.name, quote_raw(token.pattern));
+            text_lines ~= format("        DDRegexLexeme!(DDHandle.%s, %s),", token.name, quote_raw(token.pattern));
         }
         text_lines ~= "    ];\n";
         text_lines ~= "    static auto dd_skip_rules = [";
@@ -901,7 +901,7 @@ class Grammar {
         } else {
             text_lines ~= "    DDSyntaxErrorData dd_syntax_error_data;\n";
         }
-        text_lines ~= "    this (ddlexan.Token!DDToken token)";
+        text_lines ~= "    this (DDToken token)";
         text_lines ~= "    {";
         text_lines ~= "        dd_location = token.location;";
         text_lines ~= "        dd_matched_text = token.matched_text;";
@@ -910,7 +910,7 @@ class Grammar {
         text_lines ~= "        }";
         text_lines ~= "    }";
         text_lines ~= "}\n\n";
-        text_lines ~= "void dd_set_attribute_value(ref DDAttributes attrs, DDToken dd_token, string text)";
+        text_lines ~= "void dd_set_attribute_value(ref DDAttributes attrs, DDHandle dd_token, string text)";
         text_lines ~= "{";
         Set!TokenSymbol[string] token_sets;
         foreach(token; spec.symbol_table.get_tokens_ordered()) {
@@ -923,7 +923,7 @@ class Grammar {
             }
         }
         if (token_sets.length > 0) {
-            text_lines ~= "    with (DDToken) switch (dd_token) {";
+            text_lines ~= "    with (DDHandle) switch (dd_token) {";
             foreach (field; fields) {
                 if (field.field_name in token_sets) {
                     text_lines ~= format("    case %s:", token_list_string(token_sets[field.field_name].elements));
@@ -983,9 +983,9 @@ class Grammar {
     string[] generate_action_table_code_text()
     {
         string[] code_text_lines = [];
-        code_text_lines ~= "DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next_token, in DDAttributes[] dd_attribute_stack)";
+        code_text_lines ~= "DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_next_token, in DDAttributes[] dd_attribute_stack)";
         code_text_lines ~= "{";
-        code_text_lines ~= "    with (DDToken) switch(dd_current_state) {";
+        code_text_lines ~= "    with (DDHandle) switch(dd_current_state) {";
         // Do this in state id order
         auto indent = "        ";
         foreach (parser_state; parser_states) {
@@ -1031,9 +1031,9 @@ class Grammar {
 
     string[] generate_error_recovery_code_text()
     {
-        string[] code_text_lines = ["bool dd_error_recovery_ok(DDParserState dd_parser_state, DDToken dd_token)"];
+        string[] code_text_lines = ["bool dd_error_recovery_ok(DDParserState dd_parser_state, DDHandle dd_token)"];
         code_text_lines ~= "{";
-        code_text_lines ~= "    with (DDToken) switch(dd_parser_state) {";
+        code_text_lines ~= "    with (DDHandle) switch(dd_parser_state) {";
         // Do this in state id order
         foreach (parser_state; parser_states) {
             if (parser_state.error_recovery_state is null) continue;

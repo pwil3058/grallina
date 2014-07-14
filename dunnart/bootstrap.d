@@ -12,7 +12,7 @@ mixin DDParserSupport;
 
 alias ushort DDSymbol;
 
-enum DDToken : DDSymbol {
+enum DDHandle : DDSymbol {
     ddEND = 1,
     ddLEXERROR = 2,
     REGEX = 4,
@@ -37,9 +37,9 @@ enum DDToken : DDSymbol {
     DCODE = 23,
 }
 
-string dd_literal_token_string(DDToken dd_token)
+string dd_literal_token_string(DDHandle dd_token)
 {
-    with (DDToken) switch (dd_token) {
+    with (DDHandle) switch (dd_token) {
     case TOKEN: return "%token"; break;
     case FIELD: return "%field"; break;
     case LEFT: return "%left"; break;
@@ -96,29 +96,29 @@ static DDLexicalAnalyser dd_lexical_analyser;
 static this() {
 
     static auto dd_lit_lexemes = [
-        DDLiteralLexeme(DDToken.TOKEN, "%token"),
-        DDLiteralLexeme(DDToken.FIELD, "%field"),
-        DDLiteralLexeme(DDToken.LEFT, "%left"),
-        DDLiteralLexeme(DDToken.RIGHT, "%right"),
-        DDLiteralLexeme(DDToken.NONASSOC, "%nonassoc"),
-        DDLiteralLexeme(DDToken.PRECEDENCE, "%prec"),
-        DDLiteralLexeme(DDToken.SKIP, "%skip"),
-        DDLiteralLexeme(DDToken.ERROR, "%error"),
-        DDLiteralLexeme(DDToken.LEXERROR, "%lexerror"),
-        DDLiteralLexeme(DDToken.NEWSECTION, "%%"),
-        DDLiteralLexeme(DDToken.COLON, ":"),
-        DDLiteralLexeme(DDToken.VBAR, "|"),
-        DDLiteralLexeme(DDToken.DOT, "."),
+        DDLiteralLexeme(DDHandle.TOKEN, "%token"),
+        DDLiteralLexeme(DDHandle.FIELD, "%field"),
+        DDLiteralLexeme(DDHandle.LEFT, "%left"),
+        DDLiteralLexeme(DDHandle.RIGHT, "%right"),
+        DDLiteralLexeme(DDHandle.NONASSOC, "%nonassoc"),
+        DDLiteralLexeme(DDHandle.PRECEDENCE, "%prec"),
+        DDLiteralLexeme(DDHandle.SKIP, "%skip"),
+        DDLiteralLexeme(DDHandle.ERROR, "%error"),
+        DDLiteralLexeme(DDHandle.LEXERROR, "%lexerror"),
+        DDLiteralLexeme(DDHandle.NEWSECTION, "%%"),
+        DDLiteralLexeme(DDHandle.COLON, ":"),
+        DDLiteralLexeme(DDHandle.VBAR, "|"),
+        DDLiteralLexeme(DDHandle.DOT, "."),
     ];
 
     static auto dd_regex_lexemes = [
-        DDRegexLexeme!(DDToken.REGEX, `(\(.+\)(?=\s))`),
-        DDRegexLexeme!(DDToken.LITERAL, `("\S+")`),
-        DDRegexLexeme!(DDToken.IDENT, `([a-zA-Z]+[a-zA-Z0-9_]*)`),
-        DDRegexLexeme!(DDToken.FIELDNAME, `(<[a-zA-Z]+[a-zA-Z0-9_]*>)`),
-        DDRegexLexeme!(DDToken.PREDICATE, `(\?\((.|[\n\r])*?\?\))`),
-        DDRegexLexeme!(DDToken.ACTION, `(!\{(.|[\n\r])*?!\})`),
-        DDRegexLexeme!(DDToken.DCODE, `(%\{(.|[\n\r])*?%\})`),
+        DDRegexLexeme!(DDHandle.REGEX, `(\(.+\)(?=\s))`),
+        DDRegexLexeme!(DDHandle.LITERAL, `("\S+")`),
+        DDRegexLexeme!(DDHandle.IDENT, `([a-zA-Z]+[a-zA-Z0-9_]*)`),
+        DDRegexLexeme!(DDHandle.FIELDNAME, `(<[a-zA-Z]+[a-zA-Z0-9_]*>)`),
+        DDRegexLexeme!(DDHandle.PREDICATE, `(\?\((.|[\n\r])*?\?\))`),
+        DDRegexLexeme!(DDHandle.ACTION, `(!\{(.|[\n\r])*?!\})`),
+        DDRegexLexeme!(DDHandle.DCODE, `(%\{(.|[\n\r])*?%\})`),
     ];
 
     static auto dd_skip_rules = [
@@ -225,7 +225,7 @@ struct DDAttributes {
         StringList string_list;
     }
 
-    this (ddlexan.Token!DDToken token)
+    this (DDToken token)
     {
         dd_location = token.location;
         dd_matched_text = token.matched_text;
@@ -236,7 +236,7 @@ struct DDAttributes {
 }
 
 
-void dd_set_attribute_value(ref DDAttributes attrs, DDToken dd_token, string text)
+void dd_set_attribute_value(ref DDAttributes attrs, DDHandle dd_token, string text)
 {
 }
 
@@ -472,9 +472,9 @@ DDParserState dd_get_goto_state(DDNonTerminal dd_non_terminal, DDParserState dd_
     throw new Exception(format("Malformed goto table: no entry for (%s, %s).", dd_non_terminal, dd_current_state));
 }
 
-bool dd_error_recovery_ok(DDParserState dd_parser_state, DDToken dd_token)
+bool dd_error_recovery_ok(DDParserState dd_parser_state, DDHandle dd_token)
 {
-    with (DDToken) switch(dd_parser_state) {
+    with (DDHandle) switch(dd_parser_state) {
     default:
     }
     return false;
@@ -761,9 +761,9 @@ dd_do_semantic_action(ref DDAttributes dd_lhs, DDProduction dd_production, DDAtt
     }
 }
 
-DDParseAction dd_get_next_action(DDParserState dd_current_state, DDToken dd_next_token, in DDAttributes[] dd_attribute_stack)
+DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_next_token, in DDAttributes[] dd_attribute_stack)
 {
-    with (DDToken) switch(dd_current_state) {
+    with (DDHandle) switch(dd_current_state) {
     case 0:
         switch (dd_next_token) {
         case DCODE: return dd_shift!(3);

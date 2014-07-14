@@ -29,16 +29,17 @@ mixin template DDParserSupport() {
 
     import ddlexan = grallina.babs.lexan;
 
-    alias ddlexan.LiteralLexeme!DDToken DDLiteralLexeme;
-    template DDRegexLexeme(DDToken handle, string script) {
+    alias ddlexan.LiteralLexeme!DDHandle DDLiteralLexeme;
+    template DDRegexLexeme(DDHandle handle, string script) {
         static  if (script[0] == '^') {
-            enum DDRegexLexeme = ddlexan.RegexLexeme!(DDToken, Regex!char)(handle, regex(script));
+            enum DDRegexLexeme = ddlexan.RegexLexeme!(DDHandle, Regex!char)(handle, regex(script));
         } else {
-            enum DDRegexLexeme = ddlexan.RegexLexeme!(DDToken, Regex!char)(handle, regex("^" ~ script));
+            enum DDRegexLexeme = ddlexan.RegexLexeme!(DDHandle, Regex!char)(handle, regex("^" ~ script));
         }
     }
-    alias ddlexan.LexicalAnalyser!(DDToken, Regex!char) DDLexicalAnalyser;
+    alias ddlexan.LexicalAnalyser!(DDHandle, Regex!char) DDLexicalAnalyser;
     alias ddlexan.CharLocation DDCharLocation;
+    alias ddlexan.Token!DDHandle DDToken;
 
     enum DDParseActionType { SHIFT, REDUCE, ACCEPT };
     struct DDParseAction {
@@ -67,9 +68,9 @@ mixin template DDParserSupport() {
     }
 
     class DDSyntaxError: Exception {
-        DDToken[] expected_tokens;
+        DDHandle[] expected_tokens;
 
-        this(DDToken[] expected_tokens, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
+        this(DDHandle[] expected_tokens, string file=__FILE__, size_t line=__LINE__, Throwable next=null)
         {
             this.expected_tokens = expected_tokens;
             string msg = format("Syntax Error: expected  %s.", expected_tokens);
@@ -78,13 +79,13 @@ mixin template DDParserSupport() {
     }
 
     class DDSyntaxErrorData {
-        DDToken unexpected_token;
+        DDHandle unexpected_token;
         string matched_text;
         DDCharLocation location;
-        DDToken[] expected_tokens;
+        DDHandle[] expected_tokens;
         long skipped_count;
 
-        this(DDToken dd_token, DDAttributes dd_attrs, DDToken[] dd_token_list)
+        this(DDHandle dd_token, DDAttributes dd_attrs, DDHandle[] dd_token_list)
         {
             unexpected_token = dd_token;
             matched_text = dd_attrs.dd_matched_text;
@@ -96,11 +97,11 @@ mixin template DDParserSupport() {
         override string toString()
         {
             string str;
-            if (unexpected_token == DDToken.ddLEXERROR) {
+            if (unexpected_token == DDHandle.ddLEXERROR) {
                 str = format("%s: Unexpected input: %s", location, matched_text);
             } else {
                 str = format("%s: Syntax Error: ", location.line_number);
-                if (unexpected_token == DDToken.ddEND) {
+                if (unexpected_token == DDHandle.ddEND) {
                     str ~= "unexpected end of input: ";
                 } else {
                     auto literal = dd_literal_token_string(unexpected_token);
@@ -203,7 +204,7 @@ mixin template DDImplementParser() {
         }
 
         private
-        void push(DDToken dd_token, DDParserState state, DDAttributes attrs)
+        void push(DDHandle dd_token, DDParserState state, DDAttributes attrs)
         {
             push(dd_token, state);
             attr_stack[index] = attrs;
@@ -236,7 +237,7 @@ mixin template DDImplementParser() {
         }
 
         private
-        int find_viable_recovery_state(DDToken current_token)
+        int find_viable_recovery_state(DDHandle current_token)
         {
             int distance_to_viable_state = 0;
             while (distance_to_viable_state < height) {
@@ -253,32 +254,30 @@ mixin template DDImplementParser() {
 
     bool dd_parse_text(string text, string label="")
     {
-        auto tokens = dd_lexical_analyser.injectable_token_forward_range(text, label, DDToken.ddEND);
+        auto tokens = dd_lexical_analyser.injectable_token_forward_range(text, label, DDHandle.ddEND);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
-        DDToken dd_token;
         DDParseAction next_action;
         with (parse_stack) with (DDParseActionType) foreach (token; tokens) {
-            dd_token = token.handle;
         try_again:
             try {
-                next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
+                next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
                 while (next_action.action == REDUCE) {
                     reduce(next_action.production_id, &tokens.inject);
-                    next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
+                    next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
                 }
                 if (next_action.action == SHIFT) {
-                    push(dd_token, next_action.next_state, DDAttributes(token));
+                    push(token.handle, next_action.next_state, DDAttributes(token));
                 } else if (next_action.action == ACCEPT) {
                     return true;
                 }
             } catch (ddlexan.LexanInvalidToken edata) {
-                dd_token = DDToken.ddLEXERROR;
+                token = new DDToken(DDHandle.ddLEXERROR, token.matched_text, token.location);
                 goto try_again;
             } catch (DDSyntaxError edata) {
-                auto error_data = new DDSyntaxErrorData(dd_token, DDAttributes(token), edata.expected_tokens);
-                auto distance_to_viable_state = find_viable_recovery_state(dd_token);
-                while (distance_to_viable_state < 0 && dd_token != DDToken.ddEND) {
+                auto error_data = new DDSyntaxErrorData(token.handle, DDAttributes(token), edata.expected_tokens);
+                auto distance_to_viable_state = find_viable_recovery_state(token.handle);
+                while (distance_to_viable_state < 0 && token.handle != DDHandle.ddEND) {
                     token = tokens.moveFront();
                     error_data.skipped_count++;
                     distance_to_viable_state = find_viable_recovery_state(token.handle);
@@ -286,7 +285,6 @@ mixin template DDImplementParser() {
                 if (distance_to_viable_state >= 0) {
                     pop(distance_to_viable_state);
                     push(DDNonTerminal.ddERROR, dd_get_goto_state(DDNonTerminal.ddERROR, current_state), error_data);
-                    dd_token = token.handle;
                     goto try_again;
                 } else {
                     stderr.writeln(error_data);
