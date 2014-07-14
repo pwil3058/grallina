@@ -257,22 +257,25 @@ mixin template DDImplementParser() {
         auto tokens = dd_lexical_analyser.injectable_token_forward_range(text, label, DDHandle.ddEND);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
-        DDParseAction next_action;
-        with (parse_stack) with (DDParseActionType) foreach (token; tokens) {
+        auto token = tokens.moveFront();
+        with (parse_stack) with (DDParseActionType) {
         try_again:
             try {
-                next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
-                while (next_action.action == REDUCE) {
-                    reduce(next_action.production_id, &tokens.inject);
-                    next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
-                }
-                if (next_action.action == SHIFT) {
-                    push(token.handle, next_action.next_state, DDAttributes(token));
-                } else if (next_action.action == ACCEPT) {
-                    return true;
+                while (true) {
+                    auto next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
+                    while (next_action.action == REDUCE) {
+                        reduce(next_action.production_id, &tokens.inject);
+                        next_action = dd_get_next_action(current_state, token.handle, attributes_stack);
+                    }
+                    if (next_action.action == SHIFT) {
+                        push(token.handle, next_action.next_state, DDAttributes(token));
+                        token = tokens.moveFront();
+                    } else if (next_action.action == ACCEPT) {
+                        return true;
+                    }
                 }
             } catch (ddlexan.LexanInvalidToken edata) {
-                token = new DDToken(DDHandle.ddLEXERROR, token.matched_text, token.location);
+                token = new DDToken(DDHandle.ddLEXERROR, edata.unexpected_text, edata.location);
                 goto try_again;
             } catch (DDSyntaxError edata) {
                 auto error_data = new DDSyntaxErrorData(token.handle, DDAttributes(token), edata.expected_tokens);
