@@ -179,7 +179,7 @@ struct Tag {
     NamedValue[] attributes;
 
     this(string text, CharLocation start_location) {
-        auto tokens = tag_lexan.input_token_range(text);
+        auto tokens = tag_lexan.token_forward_range(text);
         if (tokens.empty) throw new MarkupException("Empty tag", start_location);
         auto first = tokens.front;
         if (first.is_valid_match && first.handle == TagHandle.NAME) {
@@ -221,7 +221,7 @@ class MarkUp {
 
     this(string text) {
         string[] tag_stack;
-        with (DocHandle) foreach (token; document_lexan.input_token_range(text)) {
+        with (DocHandle) foreach (token; document_lexan.token_forward_range(text)) {
             with (token) final switch (handle) {
             case START_TAG:
                 auto tag = Tag(token.matched_text[1..$-1], location);

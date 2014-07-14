@@ -2,9 +2,22 @@
 //
 // Copyright Peter Williams 2013 <pwil3058@bigpond.net.au>.
 //
-// Distributed under the Boost Software License, Version 1.0.
-//    (See accompanying file LICENSE_1_0.txt or copy at
-//          http://www.boost.org/LICENSE_1_0.txt)
+// This file is part of grallina.
+//
+// grallina is free software; you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License
+// as published by the Free Software Foundation; either version 3
+// of the License, or (at your option) any later version, with
+// some exceptions, please read the COPYING file.
+//
+// grallina is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with grallina; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110, USA
 
 module grallina.dunnart.templates;
 
@@ -25,9 +38,7 @@ mixin template DDParserSupport() {
         }
     }
     alias ddlexan.LexicalAnalyser!(DDToken, Regex!char) DDLexicalAnalyser;
-    alias ddlexan.TokenInputRange!DDToken DDTokenInputRange;
     alias ddlexan.CharLocation DDCharLocation;
-
 
     enum DDParseActionType { SHIFT, REDUCE, ACCEPT };
     struct DDParseAction {
@@ -242,7 +253,7 @@ mixin template DDImplementParser() {
 
     bool dd_parse_text(string text, string label="")
     {
-        auto tokens = dd_lexical_analyser.injectable_input_token_range(text, label, DDToken.ddEND);
+        auto tokens = dd_lexical_analyser.injectable_token_forward_range(text, label, DDToken.ddEND);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
         DDToken dd_token;
