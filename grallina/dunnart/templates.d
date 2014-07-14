@@ -258,20 +258,9 @@ mixin template DDImplementParser() {
         parse_stack.push(DDNonTerminal.ddSTART, 0);
         DDToken dd_token;
         DDParseAction next_action;
-        DDSyntaxErrorData error_data;
         with (parse_stack) with (DDParseActionType) foreach (token; tokens) {
             dd_token = token.handle;
         try_again:
-            if (error_data) {
-                if (dd_token == DDToken.ddEND) break;
-                error_data.skipped_count++;
-                auto distance_to_viable_state = find_viable_recovery_state(dd_token);
-                if (distance_to_viable_state == 0) continue; // get the next token and try again
-                pop(distance_to_viable_state);
-                auto nextState = dd_get_goto_state(DDNonTerminal.ddERROR, current_state);
-                push(DDNonTerminal.ddERROR, nextState, error_data);
-                error_data = null;
-            }
             try {
                 next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
                 while (next_action.action == REDUCE) {
@@ -287,16 +276,25 @@ mixin template DDImplementParser() {
                 dd_token = DDToken.ddLEXERROR;
                 goto try_again;
             } catch (DDSyntaxError edata) {
-                assert(error_data is null);
-                error_data = new DDSyntaxErrorData(dd_token, DDAttributes(token), edata.expected_tokens);
-                goto try_again;
+                auto error_data = new DDSyntaxErrorData(dd_token, DDAttributes(token), edata.expected_tokens);
+                auto distance_to_viable_state = find_viable_recovery_state(dd_token);
+                while (distance_to_viable_state < 0 && dd_token != DDToken.ddEND) {
+                    token = tokens.moveFront();
+                    error_data.skipped_count++;
+                    distance_to_viable_state = find_viable_recovery_state(token.handle);
+                }
+                if (distance_to_viable_state >= 0) {
+                    pop(distance_to_viable_state);
+                    push(DDNonTerminal.ddERROR, dd_get_goto_state(DDNonTerminal.ddERROR, current_state), error_data);
+                    dd_token = token.handle;
+                    goto try_again;
+                } else {
+                    stderr.writeln(error_data);
+                    return false;
+                }
             }
         }
-        if (error_data) {
-            stderr.writeln(error_data);
-        } else {
-            stderr.writeln("Unexpected end of input.");
-        }
+        stderr.writeln("Unexpected end of input.");
         return false;
     }
 }
