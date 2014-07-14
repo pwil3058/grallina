@@ -527,7 +527,7 @@ GrammarSpecification parse_specification_text(string text, string label="") {
     auto grammar_specification = new GrammarSpecification();
 
 void
-dd_do_semantic_action(ref DDAttributes dd_lhs, DDProduction dd_production, DDAttributes[] dd_args)
+dd_do_semantic_action(ref DDAttributes dd_lhs, DDProduction dd_production, DDAttributes[] dd_args, void delegate(string, string) dd_inject)
 {
     switch(dd_production) {
     case 2: // preamble: <empty>

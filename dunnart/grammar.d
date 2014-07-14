@@ -963,7 +963,7 @@ class Grammar {
     string[] generate_semantic_code_text()
     {
         string[] text_lines = ["void"];
-        text_lines ~= "dd_do_semantic_action(ref DDAttributes dd_lhs, DDProduction dd_production, DDAttributes[] dd_args)";
+        text_lines ~= "dd_do_semantic_action(ref DDAttributes dd_lhs, DDProduction dd_production, DDAttributes[] dd_args, void delegate(string, string) dd_inject)";
         text_lines ~= "{";
         text_lines ~= "    switch(dd_production) {";
         foreach (production; spec.production_list) {

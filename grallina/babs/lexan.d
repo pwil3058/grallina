@@ -511,7 +511,7 @@ class LexicalAnalyser(H, RE): LexicalAnalyserIfce!(H) {
 
     InjectableTokenInputRange!(H) injectable_input_token_range(string text, string label, H end_handle)
     {
-        return new InjectableTokenInputRange!(H)(this, text, label);
+        return new InjectableTokenInputRange!(H)(this, text, label, end_handle);
     }
 }
 

@@ -215,13 +215,13 @@ mixin template DDImplementParser() {
         }
 
         private
-        void reduce(DDProduction production_id)
+        void reduce(DDProduction production_id, void delegate(string, string) dd_inject)
         {
             auto productionData = dd_get_production_data(production_id);
             auto attrs = pop(productionData.length);
             auto nextState = dd_get_goto_state(productionData.left_hand_side, current_state);
             push(productionData.left_hand_side, nextState);
-            dd_do_semantic_action(top_attributes, production_id, attrs);
+            dd_do_semantic_action(top_attributes, production_id, attrs, dd_inject);
         }
 
         private
@@ -242,7 +242,7 @@ mixin template DDImplementParser() {
 
     bool dd_parse_text(string text, string label="")
     {
-        auto tokens = dd_lexical_analyser.input_token_range(text, label, DDToken.ddEND);
+        auto tokens = dd_lexical_analyser.injectable_input_token_range(text, label, DDToken.ddEND);
         auto parse_stack = DDParseStack();
         parse_stack.push(DDNonTerminal.ddSTART, 0);
         DDToken dd_token;
@@ -264,7 +264,7 @@ mixin template DDImplementParser() {
             try {
                 next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
                 while (next_action.action == REDUCE) {
-                    reduce(next_action.production_id);
+                    reduce(next_action.production_id, &tokens.inject);
                     next_action = dd_get_next_action(current_state, dd_token, attributes_stack);
                 }
                 if (next_action.action == SHIFT) {
