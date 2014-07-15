@@ -19,6 +19,7 @@ bool force;
 string module_name;
 string input_file_path;
 string output_file_path;
+string state_file_path;
 string prefix_path;
 uint expected_number_of_conflicts;
 
@@ -31,6 +32,7 @@ bool process_command_line(string[] args)
         "o|output", &output_file_path,
         "p|prefix", &prefix_path,
         "e|expect", &expected_number_of_conflicts,
+        "s|states", &state_file_path,
     );
     if (args.length != 2) {
         print_usage(args[0]);

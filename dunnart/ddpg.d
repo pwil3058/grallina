@@ -64,7 +64,14 @@ int main(string[] args)
     // Generate the grammar from the specification
     auto grammar = new Grammar(grammar_specification);
     if (grammar is null)  return 6;
-    if (verbose) {
+    if (state_file_path) {
+        try {
+            auto state_file = File(state_file_path, "w");
+            state_file.write(grammar.get_parser_states_description());
+        } catch (Exception e) {
+            writeln(e);
+        }
+    } else if (verbose) {
         writeln("\nGrammar");
         writeln(grammar.get_parser_states_description());
     }
