@@ -184,8 +184,6 @@ struct SymbolTable {
         special_symbols[SpecialSymbols.lex_error] = new Symbol(SpecialSymbols.lex_error, "ddLEXERROR", SymbolType.token, CharLocation(0, 0));
         special_symbols[SpecialSymbols.parse_error] = new Symbol(SpecialSymbols.parse_error, "ddERROR", SymbolType.non_terminal, CharLocation(0, 0));
         special_symbols[SpecialSymbols.parse_error].firsts_data = new FirstsData(Set!Symbol(), true);
-        // ddLEXERROR looks like a token except that it's transparent
-        special_symbols[SpecialSymbols.lex_error].firsts_data = new FirstsData(Set!Symbol(special_symbols[SpecialSymbols.lex_error]), true);
     }
 
     TokenSymbol new_token(string new_token_name, string pattern, CharLocation location, string field_name = "")

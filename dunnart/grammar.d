@@ -1041,6 +1041,9 @@ class Grammar {
             foreach (item_key, look_ahead_set; parser_state.error_recovery_state.grammar_items) {
                 if (item_key.dot > 0 && item_key.production.right_hand_side[item_key.dot - 1].id == SpecialSymbols.parse_error) {
                     error_recovery_set |= look_ahead_set;
+                    if (item_key.dot < item_key.production.right_hand_side.length && item_key.production.right_hand_side[item_key.dot].id == SpecialSymbols.lex_error) {
+                        error_recovery_set += spec.symbol_table.get_special_symbol(SpecialSymbols.lex_error);
+                    }
                 }
             }
             if (error_recovery_set.cardinality > 0) {
