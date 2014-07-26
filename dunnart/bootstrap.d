@@ -94,7 +94,6 @@ enum DDNonTerminal : DDSymbol {
 
 static DDLexicalAnalyser dd_lexical_analyser;
 static this() {
-
     static auto dd_lit_lexemes = [
         DDLiteralLexeme(DDHandle.TOKEN, "%token"),
         DDLiteralLexeme(DDHandle.FIELD, "%field"),
@@ -216,13 +215,13 @@ struct DDAttributes {
     union {
         DDSyntaxErrorData dd_syntax_error_data;
         Symbol symbol;
-        SemanticAction semantic_action;
-        ProductionTail production_tail;
-        SymbolList symbol_list;
-        Predicate predicate;
         AssociativePrecedence associative_precedence;
-        ProductionTailList production_tail_list;
         StringList string_list;
+        SymbolList symbol_list;
+        ProductionTail production_tail;
+        Predicate predicate;
+        SemanticAction semantic_action;
+        ProductionTailList production_tail_list;
     }
 
     this (DDToken token)
@@ -246,7 +245,7 @@ DDParserState dd_get_goto_state(DDNonTerminal dd_non_terminal, DDParserState dd_
     with (DDNonTerminal) switch(dd_current_state) {
     case 0:
         switch (dd_non_terminal) {
-        case specification: return 1;
+        case specification: return 3;
         case preamble: return 2;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 0)", dd_non_terminal));
@@ -254,7 +253,7 @@ DDParserState dd_get_goto_state(DDNonTerminal dd_non_terminal, DDParserState dd_
         break;
     case 2:
         switch (dd_non_terminal) {
-        case definitions: return 4;
+        case definitions: return 6;
         case field_definitions: return 5;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 2)", dd_non_terminal));
@@ -263,25 +262,23 @@ DDParserState dd_get_goto_state(DDNonTerminal dd_non_terminal, DDParserState dd_
     case 5:
         switch (dd_non_terminal) {
         case token_definitions: return 8;
-        case field_definition: return 9;
-        case token_definition: return 11;
+        case field_definition: return 11;
+        case token_definition: return 9;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 5)", dd_non_terminal));
         }
         break;
     case 7:
         switch (dd_non_terminal) {
-        case production_rules: return 13;
-        case production_group: return 14;
-        case production_group_head: return 15;
+        case new_token_name: return 15;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 7)", dd_non_terminal));
         }
         break;
     case 8:
         switch (dd_non_terminal) {
-        case skip_definitions: return 17;
-        case token_definition: return 18;
+        case skip_definitions: return 16;
+        case token_definition: return 17;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 8)", dd_non_terminal));
         }
@@ -295,175 +292,177 @@ DDParserState dd_get_goto_state(DDNonTerminal dd_non_terminal, DDParserState dd_
         break;
     case 12:
         switch (dd_non_terminal) {
-        case new_token_name: return 21;
+        case production_rules: return 22;
+        case production_group: return 23;
+        case production_group_head: return 21;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 12)", dd_non_terminal));
         }
         break;
-    case 13:
+    case 14:
         switch (dd_non_terminal) {
-        case coda: return 24;
-        case production_group: return 26;
-        case production_group_head: return 15;
+        case new_token_name: return 24;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 13)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 14)", dd_non_terminal));
         }
         break;
     case 15:
         switch (dd_non_terminal) {
-        case production_tail_list: return 27;
-        case production_tail: return 28;
-        case action: return 29;
-        case predicate: return 30;
-        case symbol_list: return 31;
-        case symbol: return 34;
+        case pattern: return 27;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 15)", dd_non_terminal));
         }
         break;
-    case 17:
+    case 16:
         switch (dd_non_terminal) {
-        case precedence_definitions: return 40;
-        case skip_definition: return 41;
+        case precedence_definitions: return 28;
+        case skip_definition: return 30;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 17)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 16)", dd_non_terminal));
         }
         break;
     case 19:
         switch (dd_non_terminal) {
-        case field_name: return 43;
+        case field_name: return 32;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 19)", dd_non_terminal));
         }
         break;
     case 21:
         switch (dd_non_terminal) {
-        case pattern: return 45;
+        case production_tail_list: return 44;
+        case production_tail: return 45;
+        case action: return 43;
+        case predicate: return 42;
+        case symbol_list: return 38;
+        case symbol: return 39;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 21)", dd_non_terminal));
         }
         break;
     case 22:
         switch (dd_non_terminal) {
-        case new_token_name: return 48;
+        case coda: return 48;
+        case production_group: return 46;
+        case production_group_head: return 21;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 22)", dd_non_terminal));
         }
         break;
-    case 30:
+    case 24:
         switch (dd_non_terminal) {
-        case action: return 51;
+        case pattern: return 49;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 30)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 24)", dd_non_terminal));
         }
         break;
-    case 31:
+    case 28:
         switch (dd_non_terminal) {
-        case action: return 54;
-        case predicate: return 52;
-        case tagged_precedence: return 53;
-        case symbol: return 56;
+        case precedence_definition: return 53;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 31)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 28)", dd_non_terminal));
         }
         break;
-    case 40:
+    case 32:
         switch (dd_non_terminal) {
-        case precedence_definition: return 57;
+        case field_conversion_function: return 56;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 40)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 32)", dd_non_terminal));
         }
         break;
-    case 43:
+    case 38:
         switch (dd_non_terminal) {
-        case field_conversion_function: return 62;
+        case action: return 59;
+        case predicate: return 61;
+        case tagged_precedence: return 60;
+        case symbol: return 57;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 43)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 38)", dd_non_terminal));
         }
         break;
-    case 48:
+    case 42:
         switch (dd_non_terminal) {
-        case pattern: return 64;
+        case action: return 62;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 48)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 42)", dd_non_terminal));
         }
         break;
     case 50:
         switch (dd_non_terminal) {
-        case production_tail: return 65;
-        case action: return 29;
-        case predicate: return 30;
-        case symbol_list: return 31;
-        case symbol: return 34;
+        case tag_list: return 67;
+        case tag: return 68;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 50)", dd_non_terminal));
         }
         break;
+    case 51:
+        switch (dd_non_terminal) {
+        case tag_list: return 69;
+        case tag: return 68;
+        default:
+            throw new Exception(format("Malformed goto table: no entry for (%s , 51)", dd_non_terminal));
+        }
+        break;
     case 52:
         switch (dd_non_terminal) {
-        case action: return 67;
-        case tagged_precedence: return 66;
+        case tag_list: return 70;
+        case tag: return 68;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 52)", dd_non_terminal));
         }
         break;
-    case 53:
-        switch (dd_non_terminal) {
-        case action: return 68;
-        default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 53)", dd_non_terminal));
-        }
-        break;
-    case 58:
-        switch (dd_non_terminal) {
-        case tag_list: return 71;
-        case tag: return 72;
-        default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 58)", dd_non_terminal));
-        }
-        break;
-    case 59:
-        switch (dd_non_terminal) {
-        case tag_list: return 75;
-        case tag: return 72;
-        default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 59)", dd_non_terminal));
-        }
-        break;
     case 60:
         switch (dd_non_terminal) {
-        case tag_list: return 76;
-        case tag: return 72;
+        case action: return 73;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 60)", dd_non_terminal));
         }
         break;
-    case 66:
+    case 61:
         switch (dd_non_terminal) {
-        case action: return 77;
+        case action: return 74;
+        case tagged_precedence: return 75;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 66)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 61)", dd_non_terminal));
         }
         break;
-    case 71:
+    case 63:
         switch (dd_non_terminal) {
-        case tag: return 78;
+        case production_tail: return 76;
+        case action: return 43;
+        case predicate: return 42;
+        case symbol_list: return 38;
+        case symbol: return 39;
         default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 71)", dd_non_terminal));
+            throw new Exception(format("Malformed goto table: no entry for (%s , 63)", dd_non_terminal));
+        }
+        break;
+    case 67:
+        switch (dd_non_terminal) {
+        case tag: return 77;
+        default:
+            throw new Exception(format("Malformed goto table: no entry for (%s , 67)", dd_non_terminal));
+        }
+        break;
+    case 69:
+        switch (dd_non_terminal) {
+        case tag: return 77;
+        default:
+            throw new Exception(format("Malformed goto table: no entry for (%s , 69)", dd_non_terminal));
+        }
+        break;
+    case 70:
+        switch (dd_non_terminal) {
+        case tag: return 77;
+        default:
+            throw new Exception(format("Malformed goto table: no entry for (%s , 70)", dd_non_terminal));
         }
         break;
     case 75:
         switch (dd_non_terminal) {
-        case tag: return 78;
+        case action: return 78;
         default:
             throw new Exception(format("Malformed goto table: no entry for (%s , 75)", dd_non_terminal));
-        }
-        break;
-    case 76:
-        switch (dd_non_terminal) {
-        case tag: return 78;
-        default:
-            throw new Exception(format("Malformed goto table: no entry for (%s , 76)", dd_non_terminal));
         }
         break;
     default:
@@ -766,7 +765,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
     with (DDHandle) switch(dd_current_state) {
     case 0:
         switch (dd_next_token) {
-        case DCODE: return dd_shift!(3);
+        case DCODE: return dd_shift!(1);
         case TOKEN, FIELD:
             return dd_reduce!(2); // preamble: <empty>
         default:
@@ -775,10 +774,11 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
         break;
     case 1:
         switch (dd_next_token) {
-        case ddEND:
-            return dd_accept!();
+        case DCODE: return dd_shift!(4);
+        case TOKEN, FIELD:
+            return dd_reduce!(3); // preamble: DCODE
         default:
-            throw new DDSyntaxError([ddEND]);
+            throw new DDSyntaxError([TOKEN, FIELD, DCODE]);
         }
         break;
     case 2:
@@ -791,29 +791,13 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
         break;
     case 3:
         switch (dd_next_token) {
-        case DCODE: return dd_shift!(6);
-        case TOKEN, FIELD:
-            return dd_reduce!(3); // preamble: DCODE
+        case ddEND:
+            return dd_accept!();
         default:
-            throw new DDSyntaxError([TOKEN, FIELD, DCODE]);
+            throw new DDSyntaxError([ddEND]);
         }
         break;
     case 4:
-        switch (dd_next_token) {
-        case NEWSECTION: return dd_shift!(7);
-        default:
-            throw new DDSyntaxError([NEWSECTION]);
-        }
-        break;
-    case 5:
-        switch (dd_next_token) {
-        case TOKEN: return dd_shift!(12);
-        case FIELD: return dd_shift!(10);
-        default:
-            throw new DDSyntaxError([TOKEN, FIELD]);
-        }
-        break;
-    case 6:
         switch (dd_next_token) {
         case TOKEN, FIELD:
             return dd_reduce!(4); // preamble: DCODE DCODE
@@ -821,16 +805,32 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([TOKEN, FIELD]);
         }
         break;
+    case 5:
+        switch (dd_next_token) {
+        case TOKEN: return dd_shift!(7);
+        case FIELD: return dd_shift!(10);
+        default:
+            throw new DDSyntaxError([TOKEN, FIELD]);
+        }
+        break;
+    case 6:
+        switch (dd_next_token) {
+        case NEWSECTION: return dd_shift!(12);
+        default:
+            throw new DDSyntaxError([NEWSECTION]);
+        }
+        break;
     case 7:
         switch (dd_next_token) {
-        case IDENT: return dd_shift!(16);
+        case IDENT: return dd_shift!(13);
+        case FIELDNAME: return dd_shift!(14);
         default:
-            throw new DDSyntaxError([IDENT]);
+            throw new DDSyntaxError([IDENT, FIELDNAME]);
         }
         break;
     case 8:
         switch (dd_next_token) {
-        case TOKEN: return dd_shift!(12);
+        case TOKEN: return dd_shift!(7);
         case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
             return dd_reduce!(26); // skip_definitions: <empty>
         default:
@@ -839,126 +839,35 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
         break;
     case 9:
         switch (dd_next_token) {
-        case TOKEN, FIELD:
-            return dd_reduce!(9); // field_definitions: field_definitions field_definition
-        default:
-            throw new DDSyntaxError([TOKEN, FIELD]);
-        }
-        break;
-    case 10:
-        switch (dd_next_token) {
-        case IDENT: return dd_shift!(20);
-        default:
-            throw new DDSyntaxError([IDENT]);
-        }
-        break;
-    case 11:
-        switch (dd_next_token) {
         case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
             return dd_reduce!(18); // token_definitions: token_definition
         default:
             throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
+    case 10:
+        switch (dd_next_token) {
+        case IDENT: return dd_shift!(18);
+        default:
+            throw new DDSyntaxError([IDENT]);
+        }
+        break;
+    case 11:
+        switch (dd_next_token) {
+        case TOKEN, FIELD:
+            return dd_reduce!(9); // field_definitions: field_definitions field_definition
+        default:
+            throw new DDSyntaxError([TOKEN, FIELD]);
+        }
+        break;
     case 12:
         switch (dd_next_token) {
-        case IDENT: return dd_shift!(23);
-        case FIELDNAME: return dd_shift!(22);
+        case IDENT: return dd_shift!(20);
         default:
-            throw new DDSyntaxError([IDENT, FIELDNAME]);
+            throw new DDSyntaxError([IDENT]);
         }
         break;
     case 13:
-        switch (dd_next_token) {
-        case IDENT: return dd_shift!(16);
-        case DCODE: return dd_shift!(25);
-        case ddEND:
-            return dd_reduce!(5); // coda: <empty>
-        default:
-            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
-        }
-        break;
-    case 14:
-        switch (dd_next_token) {
-        case ddEND, IDENT, DCODE:
-            return dd_reduce!(40); // production_rules: production_group
-        default:
-            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
-        }
-        break;
-    case 15:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(36);
-        case ERROR: return dd_shift!(37);
-        case LEXERROR: return dd_shift!(38);
-        case IDENT: return dd_shift!(35);
-        case PREDICATE: return dd_shift!(33);
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(48); // production_tail: <empty>
-        default:
-            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
-        }
-        break;
-    case 16:
-        switch (dd_next_token) {
-        case COLON: return dd_shift!(39);
-        default:
-            throw new DDSyntaxError([COLON]);
-        }
-        break;
-    case 17:
-        switch (dd_next_token) {
-        case SKIP: return dd_shift!(42);
-        case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce!(29); // precedence_definitions: <empty>
-        default:
-            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 18:
-        switch (dd_next_token) {
-        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(19); // token_definitions: token_definitions token_definition
-        default:
-            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 19:
-        switch (dd_next_token) {
-        case IDENT: return dd_shift!(44);
-        default:
-            throw new DDSyntaxError([IDENT]);
-        }
-        break;
-    case 20:
-        switch (dd_next_token) {
-        case IDENT:
-            if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce!(12); // field_type: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
-            } else {
-                return dd_reduce!(13); // field_type: IDENT
-            }
-        default:
-            throw new DDSyntaxError([IDENT]);
-        }
-        break;
-    case 21:
-        switch (dd_next_token) {
-        case REGEX: return dd_shift!(46);
-        case LITERAL: return dd_shift!(47);
-        default:
-            throw new DDSyntaxError([REGEX, LITERAL]);
-        }
-        break;
-    case 22:
-        switch (dd_next_token) {
-        case IDENT: return dd_shift!(23);
-        default:
-            throw new DDSyntaxError([IDENT]);
-        }
-        break;
-    case 23:
         switch (dd_next_token) {
         case REGEX, LITERAL:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
@@ -970,98 +879,193 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([REGEX, LITERAL]);
         }
         break;
-    case 24:
+    case 14:
         switch (dd_next_token) {
-        case ddEND:
-            return dd_reduce!(1); // specification: preamble definitions "%%" production_rules coda
+        case IDENT: return dd_shift!(13);
         default:
-            throw new DDSyntaxError([ddEND]);
+            throw new DDSyntaxError([IDENT]);
         }
         break;
-    case 25:
+    case 15:
         switch (dd_next_token) {
-        case ddEND:
-            return dd_reduce!(6); // coda: DCODE
+        case REGEX: return dd_shift!(26);
+        case LITERAL: return dd_shift!(25);
         default:
-            throw new DDSyntaxError([ddEND]);
+            throw new DDSyntaxError([REGEX, LITERAL]);
         }
         break;
-    case 26:
+    case 16:
         switch (dd_next_token) {
-        case ddEND, IDENT, DCODE:
-            return dd_reduce!(41); // production_rules: production_rules production_group
+        case SKIP: return dd_shift!(29);
+        case LEFT, RIGHT, NONASSOC, NEWSECTION:
+            return dd_reduce!(29); // precedence_definitions: <empty>
+        default:
+            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+        }
+        break;
+    case 17:
+        switch (dd_next_token) {
+        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(19); // token_definitions: token_definitions token_definition
+        default:
+            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+        }
+        break;
+    case 18:
+        switch (dd_next_token) {
+        case IDENT:
+            if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
+                return dd_reduce!(12); // field_type: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+            } else {
+                return dd_reduce!(13); // field_type: IDENT
+            }
+        default:
+            throw new DDSyntaxError([IDENT]);
+        }
+        break;
+    case 19:
+        switch (dd_next_token) {
+        case IDENT: return dd_shift!(31);
+        default:
+            throw new DDSyntaxError([IDENT]);
+        }
+        break;
+    case 20:
+        switch (dd_next_token) {
+        case COLON: return dd_shift!(33);
+        default:
+            throw new DDSyntaxError([COLON]);
+        }
+        break;
+    case 21:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(36);
+        case ERROR: return dd_shift!(35);
+        case LEXERROR: return dd_shift!(34);
+        case IDENT: return dd_shift!(37);
+        case PREDICATE: return dd_shift!(40);
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(48); // production_tail: <empty>
+        default:
+            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
+        }
+        break;
+    case 22:
+        switch (dd_next_token) {
+        case IDENT: return dd_shift!(20);
+        case DCODE: return dd_shift!(47);
+        case ddEND:
+            return dd_reduce!(5); // coda: <empty>
         default:
             throw new DDSyntaxError([ddEND, IDENT, DCODE]);
         }
         break;
+    case 23:
+        switch (dd_next_token) {
+        case ddEND, IDENT, DCODE:
+            return dd_reduce!(40); // production_rules: production_group
+        default:
+            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
+        }
+        break;
+    case 24:
+        switch (dd_next_token) {
+        case REGEX: return dd_shift!(26);
+        case LITERAL: return dd_shift!(25);
+        default:
+            throw new DDSyntaxError([REGEX, LITERAL]);
+        }
+        break;
+    case 25:
+        switch (dd_next_token) {
+        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(25); // pattern: LITERAL
+        default:
+            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+        }
+        break;
+    case 26:
+        switch (dd_next_token) {
+        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(24); // pattern: REGEX
+        default:
+            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+        }
+        break;
     case 27:
         switch (dd_next_token) {
-        case VBAR: return dd_shift!(50);
-        case DOT: return dd_shift!(49);
+        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(20); // token_definition: "%token" new_token_name pattern
         default:
-            throw new DDSyntaxError([VBAR, DOT]);
+            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 28:
         switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(46); // production_tail_list: production_tail
+        case LEFT: return dd_shift!(52);
+        case RIGHT: return dd_shift!(51);
+        case NONASSOC: return dd_shift!(50);
+        case NEWSECTION:
+            return dd_reduce!(7); // definitions: field_definitions token_definitions skip_definitions precedence_definitions
         default:
-            throw new DDSyntaxError([VBAR, DOT]);
+            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, NEWSECTION]);
         }
         break;
     case 29:
         switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(49); // production_tail: action
+        case REGEX: return dd_shift!(54);
         default:
-            throw new DDSyntaxError([VBAR, DOT]);
+            throw new DDSyntaxError([REGEX]);
         }
         break;
     case 30:
         switch (dd_next_token) {
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(51); // production_tail: predicate
+        case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(27); // skip_definitions: skip_definitions skip_definition
         default:
-            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
     case 31:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift!(36);
-        case PRECEDENCE: return dd_shift!(55);
-        case ERROR: return dd_shift!(37);
-        case LEXERROR: return dd_shift!(38);
-        case IDENT: return dd_shift!(35);
-        case PREDICATE: return dd_shift!(33);
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(59); // production_tail: symbol_list
+        case TOKEN, FIELD, IDENT:
+            if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
+                return dd_reduce!(14); // field_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
+            } else {
+                return dd_reduce!(15); // field_name: IDENT
+            }
         default:
-            throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
+            throw new DDSyntaxError([TOKEN, FIELD, IDENT]);
         }
         break;
     case 32:
         switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(60); // action: ACTION
+        case IDENT: return dd_shift!(55);
+        case TOKEN, FIELD:
+            return dd_reduce!(10); // field_definition: "%field" field_type field_name
         default:
-            throw new DDSyntaxError([VBAR, DOT]);
+            throw new DDSyntaxError([TOKEN, FIELD, IDENT]);
         }
         break;
     case 33:
         switch (dd_next_token) {
-        case PRECEDENCE, VBAR, DOT, ACTION:
-            return dd_reduce!(61); // predicate: PREDICATE
+        case LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
+            if ( grammar_specification.symbol_table.is_known_token(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
+                return dd_reduce!(43); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
+            } else if ( grammar_specification.symbol_table.is_known_tag(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
+                return dd_reduce!(44); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_tag($1.dd_matched_text)  ?)
+            } else {
+                return dd_reduce!(45); // production_group_head: IDENT ":"
+            }
         default:
-            throw new DDSyntaxError([PRECEDENCE, VBAR, DOT, ACTION]);
+            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
         break;
     case 34:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce!(64); // symbol_list: symbol
+            return dd_reduce!(69); // symbol: "%lexerror"
         default:
             throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1069,7 +1073,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
     case 35:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce!(66); // symbol: IDENT
+            return dd_reduce!(68); // symbol: "%error"
         default:
             throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
@@ -1085,186 +1089,140 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
     case 37:
         switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce!(68); // symbol: "%error"
+            return dd_reduce!(66); // symbol: IDENT
         default:
             throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
         break;
     case 38:
         switch (dd_next_token) {
-        case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce!(69); // symbol: "%lexerror"
+        case LITERAL: return dd_shift!(36);
+        case PRECEDENCE: return dd_shift!(58);
+        case ERROR: return dd_shift!(35);
+        case LEXERROR: return dd_shift!(34);
+        case IDENT: return dd_shift!(37);
+        case PREDICATE: return dd_shift!(40);
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(59); // production_tail: symbol_list
         default:
             throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
         break;
     case 39:
         switch (dd_next_token) {
-        case LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            if ( grammar_specification.symbol_table.is_known_token(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
-                return dd_reduce!(43); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_token($1.dd_matched_text)  ?)
-            } else if ( grammar_specification.symbol_table.is_known_tag(dd_attribute_stack[$ - 3 + 1].dd_matched_text) ) {
-                return dd_reduce!(44); // production_group_head: IDENT ":" ?(  grammar_specification.symbol_table.is_known_tag($1.dd_matched_text)  ?)
-            } else {
-                return dd_reduce!(45); // production_group_head: IDENT ":"
-            }
-        default:
-            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
-        }
-        break;
-    case 40:
-        switch (dd_next_token) {
-        case LEFT: return dd_shift!(58);
-        case RIGHT: return dd_shift!(59);
-        case NONASSOC: return dd_shift!(60);
-        case NEWSECTION:
-            return dd_reduce!(7); // definitions: field_definitions token_definitions skip_definitions precedence_definitions
-        default:
-            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, NEWSECTION]);
-        }
-        break;
-    case 41:
-        switch (dd_next_token) {
-        case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(27); // skip_definitions: skip_definitions skip_definition
-        default:
-            throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 42:
-        switch (dd_next_token) {
-        case REGEX: return dd_shift!(61);
-        default:
-            throw new DDSyntaxError([REGEX]);
-        }
-        break;
-    case 43:
-        switch (dd_next_token) {
-        case IDENT: return dd_shift!(63);
-        case TOKEN, FIELD:
-            return dd_reduce!(10); // field_definition: "%field" field_type field_name
-        default:
-            throw new DDSyntaxError([TOKEN, FIELD, IDENT]);
-        }
-        break;
-    case 44:
-        switch (dd_next_token) {
-        case TOKEN, FIELD, IDENT:
-            if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
-                return dd_reduce!(14); // field_name: IDENT ?(  !is_allowable_name($1.dd_matched_text)  ?)
-            } else {
-                return dd_reduce!(15); // field_name: IDENT
-            }
-        default:
-            throw new DDSyntaxError([TOKEN, FIELD, IDENT]);
-        }
-        break;
-    case 45:
-        switch (dd_next_token) {
-        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(20); // token_definition: "%token" new_token_name pattern
-        default:
-            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 46:
-        switch (dd_next_token) {
-        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(24); // pattern: REGEX
-        default:
-            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 47:
-        switch (dd_next_token) {
-        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(25); // pattern: LITERAL
-        default:
-            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
-        }
-        break;
-    case 48:
-        switch (dd_next_token) {
-        case REGEX: return dd_shift!(46);
-        case LITERAL: return dd_shift!(47);
-        default:
-            throw new DDSyntaxError([REGEX, LITERAL]);
-        }
-        break;
-    case 49:
-        switch (dd_next_token) {
-        case ddEND, IDENT, DCODE:
-            return dd_reduce!(42); // production_group: production_group_head production_tail_list "."
-        default:
-            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
-        }
-        break;
-    case 50:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(36);
-        case ERROR: return dd_shift!(37);
-        case LEXERROR: return dd_shift!(38);
-        case IDENT: return dd_shift!(35);
-        case PREDICATE: return dd_shift!(33);
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(48); // production_tail: <empty>
-        default:
-            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
-        }
-        break;
-    case 51:
-        switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(50); // production_tail: predicate action
-        default:
-            throw new DDSyntaxError([VBAR, DOT]);
-        }
-        break;
-    case 52:
-        switch (dd_next_token) {
-        case PRECEDENCE: return dd_shift!(55);
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(55); // production_tail: symbol_list predicate
-        default:
-            throw new DDSyntaxError([PRECEDENCE, VBAR, DOT, ACTION]);
-        }
-        break;
-    case 53:
-        switch (dd_next_token) {
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(57); // production_tail: symbol_list tagged_precedence
-        default:
-            throw new DDSyntaxError([VBAR, DOT, ACTION]);
-        }
-        break;
-    case 54:
-        switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(58); // production_tail: symbol_list action
-        default:
-            throw new DDSyntaxError([VBAR, DOT]);
-        }
-        break;
-    case 55:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(70);
-        case IDENT: return dd_shift!(69);
-        default:
-            throw new DDSyntaxError([LITERAL, IDENT]);
-        }
-        break;
-    case 56:
-        switch (dd_next_token) {
         case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
-            return dd_reduce!(65); // symbol_list: symbol_list symbol
+            return dd_reduce!(64); // symbol_list: symbol
         default:
             throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
         }
         break;
-    case 57:
+    case 40:
+        switch (dd_next_token) {
+        case PRECEDENCE, VBAR, DOT, ACTION:
+            return dd_reduce!(61); // predicate: PREDICATE
+        default:
+            throw new DDSyntaxError([PRECEDENCE, VBAR, DOT, ACTION]);
+        }
+        break;
+    case 41:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(60); // action: ACTION
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 42:
+        switch (dd_next_token) {
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(51); // production_tail: predicate
+        default:
+            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+        }
+        break;
+    case 43:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(49); // production_tail: action
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 44:
+        switch (dd_next_token) {
+        case VBAR: return dd_shift!(63);
+        case DOT: return dd_shift!(64);
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 45:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(46); // production_tail_list: production_tail
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 46:
+        switch (dd_next_token) {
+        case ddEND, IDENT, DCODE:
+            return dd_reduce!(41); // production_rules: production_rules production_group
+        default:
+            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
+        }
+        break;
+    case 47:
+        switch (dd_next_token) {
+        case ddEND:
+            return dd_reduce!(6); // coda: DCODE
+        default:
+            throw new DDSyntaxError([ddEND]);
+        }
+        break;
+    case 48:
+        switch (dd_next_token) {
+        case ddEND:
+            return dd_reduce!(1); // specification: preamble definitions "%%" production_rules coda
+        default:
+            throw new DDSyntaxError([ddEND]);
+        }
+        break;
+    case 49:
+        switch (dd_next_token) {
+        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
+            return dd_reduce!(21); // token_definition: "%token" FIELDNAME new_token_name pattern
+        default:
+            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+        }
+        break;
+    case 50:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
+        default:
+            throw new DDSyntaxError([LITERAL, IDENT]);
+        }
+        break;
+    case 51:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
+        default:
+            throw new DDSyntaxError([LITERAL, IDENT]);
+        }
+        break;
+    case 52:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
+        default:
+            throw new DDSyntaxError([LITERAL, IDENT]);
+        }
+        break;
+    case 53:
         switch (dd_next_token) {
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
             return dd_reduce!(30); // precedence_definitions: precedence_definitions precedence_definition
@@ -1272,31 +1230,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, NEWSECTION]);
         }
         break;
-    case 58:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
-        default:
-            throw new DDSyntaxError([LITERAL, IDENT]);
-        }
-        break;
-    case 59:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
-        default:
-            throw new DDSyntaxError([LITERAL, IDENT]);
-        }
-        break;
-    case 60:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
-        default:
-            throw new DDSyntaxError([LITERAL, IDENT]);
-        }
-        break;
-    case 61:
+    case 54:
         switch (dd_next_token) {
         case LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
             return dd_reduce!(28); // skip_definition: "%skip" REGEX
@@ -1304,15 +1238,7 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
         }
         break;
-    case 62:
-        switch (dd_next_token) {
-        case TOKEN, FIELD:
-            return dd_reduce!(11); // field_definition: "%field" field_type field_name field_conversion_function
-        default:
-            throw new DDSyntaxError([TOKEN, FIELD]);
-        }
-        break;
-    case 63:
+    case 55:
         switch (dd_next_token) {
         case TOKEN, FIELD:
             if ( !is_allowable_name(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
@@ -1324,90 +1250,88 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([TOKEN, FIELD]);
         }
         break;
+    case 56:
+        switch (dd_next_token) {
+        case TOKEN, FIELD:
+            return dd_reduce!(11); // field_definition: "%field" field_type field_name field_conversion_function
+        default:
+            throw new DDSyntaxError([TOKEN, FIELD]);
+        }
+        break;
+    case 57:
+        switch (dd_next_token) {
+        case LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION:
+            return dd_reduce!(65); // symbol_list: symbol_list symbol
+        default:
+            throw new DDSyntaxError([LITERAL, PRECEDENCE, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
+        }
+        break;
+    case 58:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(71);
+        case IDENT: return dd_shift!(72);
+        default:
+            throw new DDSyntaxError([LITERAL, IDENT]);
+        }
+        break;
+    case 59:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(58); // production_tail: symbol_list action
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 60:
+        switch (dd_next_token) {
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(57); // production_tail: symbol_list tagged_precedence
+        default:
+            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+        }
+        break;
+    case 61:
+        switch (dd_next_token) {
+        case PRECEDENCE: return dd_shift!(58);
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(55); // production_tail: symbol_list predicate
+        default:
+            throw new DDSyntaxError([PRECEDENCE, VBAR, DOT, ACTION]);
+        }
+        break;
+    case 62:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(50); // production_tail: predicate action
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 63:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(36);
+        case ERROR: return dd_shift!(35);
+        case LEXERROR: return dd_shift!(34);
+        case IDENT: return dd_shift!(37);
+        case PREDICATE: return dd_shift!(40);
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(48); // production_tail: <empty>
+        default:
+            throw new DDSyntaxError([LITERAL, ERROR, LEXERROR, VBAR, DOT, IDENT, PREDICATE, ACTION]);
+        }
+        break;
     case 64:
         switch (dd_next_token) {
-        case TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION:
-            return dd_reduce!(21); // token_definition: "%token" FIELDNAME new_token_name pattern
+        case ddEND, IDENT, DCODE:
+            return dd_reduce!(42); // production_group: production_group_head production_tail_list "."
         default:
-            throw new DDSyntaxError([TOKEN, LEFT, RIGHT, NONASSOC, SKIP, NEWSECTION]);
+            throw new DDSyntaxError([ddEND, IDENT, DCODE]);
         }
         break;
     case 65:
-        switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(47); // production_tail_list: production_tail_list "|" production_tail
-        default:
-            throw new DDSyntaxError([VBAR, DOT]);
-        }
-        break;
-    case 66:
-        switch (dd_next_token) {
-        case ACTION: return dd_shift!(32);
-        case VBAR, DOT:
-            return dd_reduce!(53); // production_tail: symbol_list predicate tagged_precedence
-        default:
-            throw new DDSyntaxError([VBAR, DOT, ACTION]);
-        }
-        break;
-    case 67:
-        switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(54); // production_tail: symbol_list predicate action
-        default:
-            throw new DDSyntaxError([VBAR, DOT]);
-        }
-        break;
-    case 68:
-        switch (dd_next_token) {
-        case VBAR, DOT:
-            return dd_reduce!(56); // production_tail: symbol_list tagged_precedence action
-        default:
-            throw new DDSyntaxError([VBAR, DOT]);
-        }
-        break;
-    case 69:
-        switch (dd_next_token) {
-        case VBAR, DOT, ACTION:
-            return dd_reduce!(62); // tagged_precedence: "%prec" IDENT
-        default:
-            throw new DDSyntaxError([VBAR, DOT, ACTION]);
-        }
-        break;
-    case 70:
-        switch (dd_next_token) {
-        case VBAR, DOT, ACTION:
-            return dd_reduce!(63); // tagged_precedence: "%prec" LITERAL
-        default:
-            throw new DDSyntaxError([VBAR, DOT, ACTION]);
-        }
-        break;
-    case 71:
-        switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
-        case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce!(31); // precedence_definition: "%left" tag_list
-        default:
-            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
-        }
-        break;
-    case 72:
-        switch (dd_next_token) {
-        case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
-            return dd_reduce!(34); // tag_list: tag
-        default:
-            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
-        }
-        break;
-    case 73:
-        switch (dd_next_token) {
-        case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
-            return dd_reduce!(36); // tag: LITERAL
-        default:
-            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
-        }
-        break;
-    case 74:
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
             if ( grammar_specification.symbol_table.is_known_token(dd_attribute_stack[$ - 2 + 1].dd_matched_text) ) {
@@ -1421,40 +1345,115 @@ DDParseAction dd_get_next_action(DDParserState dd_current_state, DDHandle dd_nex
             throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
         break;
-    case 75:
+    case 66:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
-        case LEFT, RIGHT, NONASSOC, NEWSECTION:
-            return dd_reduce!(32); // precedence_definition: "%right" tag_list
+        case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
+            return dd_reduce!(36); // tag: LITERAL
         default:
             throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
         break;
-    case 76:
+    case 67:
         switch (dd_next_token) {
-        case LITERAL: return dd_shift!(73);
-        case IDENT: return dd_shift!(74);
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
         case LEFT, RIGHT, NONASSOC, NEWSECTION:
             return dd_reduce!(33); // precedence_definition: "%nonassoc" tag_list
         default:
             throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
         }
         break;
-    case 77:
+    case 68:
+        switch (dd_next_token) {
+        case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
+            return dd_reduce!(34); // tag_list: tag
+        default:
+            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
+        }
+        break;
+    case 69:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
+        case LEFT, RIGHT, NONASSOC, NEWSECTION:
+            return dd_reduce!(32); // precedence_definition: "%right" tag_list
+        default:
+            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
+        }
+        break;
+    case 70:
+        switch (dd_next_token) {
+        case LITERAL: return dd_shift!(66);
+        case IDENT: return dd_shift!(65);
+        case LEFT, RIGHT, NONASSOC, NEWSECTION:
+            return dd_reduce!(31); // precedence_definition: "%left" tag_list
+        default:
+            throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
+        }
+        break;
+    case 71:
+        switch (dd_next_token) {
+        case VBAR, DOT, ACTION:
+            return dd_reduce!(63); // tagged_precedence: "%prec" LITERAL
+        default:
+            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+        }
+        break;
+    case 72:
+        switch (dd_next_token) {
+        case VBAR, DOT, ACTION:
+            return dd_reduce!(62); // tagged_precedence: "%prec" IDENT
+        default:
+            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+        }
+        break;
+    case 73:
         switch (dd_next_token) {
         case VBAR, DOT:
-            return dd_reduce!(52); // production_tail: symbol_list predicate tagged_precedence action
+            return dd_reduce!(56); // production_tail: symbol_list tagged_precedence action
         default:
             throw new DDSyntaxError([VBAR, DOT]);
         }
         break;
-    case 78:
+    case 74:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(54); // production_tail: symbol_list predicate action
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 75:
+        switch (dd_next_token) {
+        case ACTION: return dd_shift!(41);
+        case VBAR, DOT:
+            return dd_reduce!(53); // production_tail: symbol_list predicate tagged_precedence
+        default:
+            throw new DDSyntaxError([VBAR, DOT, ACTION]);
+        }
+        break;
+    case 76:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(47); // production_tail_list: production_tail_list "|" production_tail
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
+        }
+        break;
+    case 77:
         switch (dd_next_token) {
         case LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT:
             return dd_reduce!(35); // tag_list: tag_list tag
         default:
             throw new DDSyntaxError([LITERAL, LEFT, RIGHT, NONASSOC, NEWSECTION, IDENT]);
+        }
+        break;
+    case 78:
+        switch (dd_next_token) {
+        case VBAR, DOT:
+            return dd_reduce!(52); // production_tail: symbol_list predicate tagged_precedence action
+        default:
+            throw new DDSyntaxError([VBAR, DOT]);
         }
         break;
     default:
