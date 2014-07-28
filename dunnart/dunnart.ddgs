@@ -84,7 +84,6 @@ GrammarSpecification parse_specification_text(string text, string label="") {
 %token  PRECEDENCE      "%prec"
 %token  SKIP            "%skip"
 %token  ERROR           "%error"
-%token  LEXERROR        "%lexerror"
 %token  NEWSECTION      "%%"
 %token  COLON           ":"
 %token  VBAR            "|"
@@ -451,10 +450,6 @@ symbol: IDENT
     | "%error"
         !{
             $$.symbol = grammar_specification.symbol_table.get_special_symbol(SpecialSymbols.parse_error);
-        !}
-    | "%lexerror"
-        !{
-            $$.symbol = grammar_specification.symbol_table.get_special_symbol(SpecialSymbols.lex_error);;
         !}
     .
 

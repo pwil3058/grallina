@@ -97,7 +97,7 @@ mixin template DDParserSupport() {
         override string toString()
         {
             string str;
-            if (unexpected_token == DDHandle.ddLEXERROR) {
+            if (unexpected_token == DDHandle.ddINVALID_TOKEN) {
                 str = format("%s: Unexpected input: %s", location, matched_text);
             } else {
                 str = format("%s: Syntax Error: ", location.line_number);
@@ -275,7 +275,7 @@ mixin template DDImplementParser() {
                     }
                 }
             } catch (ddlexan.LexanInvalidToken edata) {
-                token = new DDToken(DDHandle.ddLEXERROR, edata.unexpected_text, edata.location);
+                token = new DDToken(DDHandle.ddINVALID_TOKEN, edata.unexpected_text, edata.location);
                 goto try_again;
             } catch (DDSyntaxError edata) {
                 auto error_data = new DDSyntaxErrorData(token.handle, DDAttributes(token), edata.expected_tokens);

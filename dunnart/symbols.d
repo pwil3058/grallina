@@ -18,7 +18,7 @@ import workarounds;
 import grallina.babs.lexan;
 
 alias uint SymbolId;
-enum SpecialSymbols : SymbolId { start, end, lex_error, parse_error };
+enum SpecialSymbols : SymbolId { start, end, invalid_token, parse_error };
 
 enum SymbolType {token, tag, non_terminal};
 
@@ -181,7 +181,7 @@ struct SymbolTable {
     {
         special_symbols[SpecialSymbols.start] = new Symbol(SpecialSymbols.start, "ddSTART", SymbolType.non_terminal, CharLocation(0, 0));
         special_symbols[SpecialSymbols.end] = new Symbol(SpecialSymbols.end, "ddEND", SymbolType.token, CharLocation(0, 0));
-        special_symbols[SpecialSymbols.lex_error] = new Symbol(SpecialSymbols.lex_error, "ddLEXERROR", SymbolType.token, CharLocation(0, 0));
+        special_symbols[SpecialSymbols.invalid_token] = new Symbol(SpecialSymbols.invalid_token, "ddINVALID_TOKEN", SymbolType.token, CharLocation(0, 0));
         special_symbols[SpecialSymbols.parse_error] = new Symbol(SpecialSymbols.parse_error, "ddERROR", SymbolType.non_terminal, CharLocation(0, 0));
         special_symbols[SpecialSymbols.parse_error].firsts_data = new FirstsData(Set!Symbol(), true);
     }
