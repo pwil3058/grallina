@@ -26,6 +26,7 @@ import std.algorithm: copy, find;
 import std.traits: isAssignable;
 import std.array: retro;
 
+// for use in unit tests
 mixin template DummyClass() {
     class Dummy {
         int val;
@@ -42,6 +43,13 @@ mixin template DummyClass() {
             return format("Dummy(%s)", val);
         }
     }
+}
+
+// Does this list contain the item?
+private bool contains(T)(in T[] list, in T item)
+{
+    auto tail = find(list, item);
+    return tail.length && tail[0] == item;
 }
 
 private bool is_ordered(T)(in T[] list)
@@ -93,13 +101,14 @@ unittest {
 }
 
 private T[] remove_adj_dups(T)(T[] list)
+in {
+    assert(is_ordered(list));
+}
 out (result) {
     for (auto i = 1; i < result.length; i++) {
         assert(result[i - 1] != result[i]);
     }
-    foreach (item; list) {
-        assert(find(result, item)[0] == item);
-    }
+    foreach (item; list) assert(result.contains(item));
 }
 body {
     if (list.length > 1) {
@@ -121,11 +130,11 @@ unittest {
     assert(remove_adj_dups(single) == [1]);
     int[] pair = [1, 1];
     assert(remove_adj_dups(pair) == [1]);
-    int[] few = [5, 1, 1, 5, 6, 6, 3];
-    assert(remove_adj_dups(few) == [5, 1, 5, 6, 3]);
+    int[] few = [1, 1, 5, 6, 6, 9];
+    assert(remove_adj_dups(few) == [1, 5, 6, 9]);
     mixin DummyClass;
-    Dummy[] dfew = [new Dummy(5), new Dummy(1), new Dummy(1), new Dummy(5), new Dummy(6), new Dummy(6), new Dummy(3)];
-    assert(remove_adj_dups(dfew) == [new Dummy(5), new Dummy(1), new Dummy(5), new Dummy(6), new Dummy(3)]);
+    Dummy[] dfew = [new Dummy(1), new Dummy(1), new Dummy(5), new Dummy(6), new Dummy(6), new Dummy(9)];
+    assert(remove_adj_dups(dfew) == [new Dummy(1), new Dummy(5), new Dummy(6), new Dummy(9)]);
 }
 
 struct BinarySearchResult {
@@ -145,6 +154,7 @@ out (result) {
             assert(list[result.index] == item);
         }
     } else {
+        assert(!list.contains(item));
         static if (is(T == class)) { // WORKAROUND: class opCmp() design flaw
             assert(result.index == list.length || cast (T) list[result.index] > cast (T) item);
             assert(result.index == 0 || cast (T) list[result.index - 1] < cast (T) item);
@@ -216,9 +226,7 @@ out (result) {
             assert(result[i - 1] < result[i]);
         }
     }
-    foreach (item; list) {
-        assert(find(result, item)[0] == item);
-    }
+    foreach (item; list) assert(result.contains(item));
 }
 body {
     static if (is(T == class)) { // WORKAROUND: class opCmp() design flaw
@@ -248,10 +256,8 @@ in {
 }
 out (result) {
     assert(is_ordered_no_dups(result));
-    assert(find(result, item)[0] == item);
-    foreach (i; list) {
-        assert(find(result, i)[0] == i);
-    }
+    assert(result.contains(item));
+    foreach (i; list)  assert(result.contains(i));
 }
 body {
     auto bsr = binary_search(list, item);
@@ -292,7 +298,7 @@ out (result) {
     assert(is_ordered_no_dups(result));
     assert(find(result, item).length == 0);
     foreach (i; list) {
-        if (i != item) assert(find(result, i)[0] == i);
+        if (i != item) assert(result.contains(i));
     }
 }
 body {
@@ -313,4 +319,67 @@ unittest {
     mixin DummyClass;
     Dummy[] dlist = [new Dummy(2), new Dummy(4), new Dummy(8), new Dummy(16), new Dummy(32)];
     assert(remove(dlist, dlist[0]).length == 4);
+}
+
+private T[] set_union(T)(in T[] list1, in T[] list2)
+in {
+    assert(is_ordered_no_dups(list1) && is_ordered_no_dups(list2));
+}
+out (result) {
+    assert(is_ordered_no_dups(result));
+    foreach (i; list1) assert(result.contains(i));
+    foreach (i; list2) assert(result.contains(i));
+    foreach (i; result) assert(list1.contains(i) || list2.contains(i));
+}
+body {
+    T[] su;
+    su.reserve(list1.length + list2.length);
+    size_t i_1, i_2;
+    while (i_1 < list1.length && i_2 < list2.length) {
+        if (cast(T) list1[i_1] < cast(T) list2[i_2]) { // WORKAROUND: class opCmp() design flaw
+            static if (isAssignable!(T, const(T))) {
+                su ~=  list1[i_1++];
+            } else {
+                su ~= cast(T) list1[i_1++];
+            }
+        } else if (cast(T) list2[i_2] < cast(T) list1[i_1]) { // WORKAROUND: class opCmp() design flaw
+            static if (isAssignable!(T, const(T))) {
+                su ~= list2[i_2++];
+            } else {
+                su ~= cast(T) list2[i_2++];
+            }
+        } else {
+            static if (isAssignable!(T, const(T))) {
+                su ~= list1[i_1++];
+            } else {
+                su ~= cast(T) list1[i_1++];
+            }
+            i_2++;
+        }
+    }
+    // Add the (one or less) tail if any
+    if (i_1 < list1.length) {
+        static if (isAssignable!(T, const(T))) {
+            su ~= list1[i_1..$];
+        } else {
+            su ~= cast(T[]) list1[i_1..$];
+        }
+    } else if (i_2 < list2.length) {
+        static if (isAssignable!(T, const(T))) {
+            su ~= list2[i_2..$];
+        } else {
+            su ~= cast(T[]) list2[i_2..$];
+        }
+    }
+    return su;
+}
+unittest {
+    auto list1 = [2, 7, 8, 16, 21, 32, 64];
+    auto list2 = [1, 2, 3, 4, 7, 21, 64, 128];
+    assert(set_union(list1, list2) == [1, 2, 3, 4, 7, 8, 16, 21, 32, 64, 128]);
+    assert(set_union(list2, list1) == [1, 2, 3, 4, 7, 8, 16, 21, 32, 64, 128]);
+    mixin DummyClass;
+    auto dlist1 = [new Dummy(2), new Dummy(7), new Dummy(8), new Dummy(16), new Dummy(21), new Dummy(32), new Dummy(64)];
+    auto dlist2 = [new Dummy(1), new Dummy(2), new Dummy(3), new Dummy(4), new Dummy(7), new Dummy(21), new Dummy(64), new Dummy(128)];
+    assert(set_union(dlist1, dlist2) == set_union(dlist2, dlist1));
 }
