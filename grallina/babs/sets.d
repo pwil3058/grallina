@@ -377,3 +377,44 @@ unittest {
     auto dlist2 = [new Dummy(1), new Dummy(2), new Dummy(3), new Dummy(4), new Dummy(7), new Dummy(21), new Dummy(64), new Dummy(128)];
     assert(set_union(dlist1, dlist2) == set_union(dlist2, dlist1));
 }
+
+private T[] set_intersection(T)(in T[] list1, in T[] list2)
+in {
+    assert(is_ordered_no_dups(list1) && is_ordered_no_dups(list2));
+}
+out (result) {
+    assert(is_ordered_no_dups(result));
+    foreach (i; list1) if (list2.contains(i)) assert(result.contains(i));
+    foreach (i; list2) if (list1.contains(i)) assert(result.contains(i));
+    foreach (i; result) assert(list1.contains(i) && list2.contains(i));
+}
+body {
+    T[] su;
+    su.reserve(list1.length < list2.length ? list1.length : list2.length);
+    size_t i_1, i_2;
+    while (i_1 < list1.length && i_2 < list2.length) {
+        if (cast(T) list1[i_1] < cast(T) list2[i_2]) { // WORKAROUND: class opCmp() design flaw
+            i_1++;
+        } else if (cast(T) list2[i_2] < cast(T) list1[i_1]) { // WORKAROUND: class opCmp() design flaw
+            i_2++;
+        } else {
+            static if (isAssignable!(T, const(T))) {
+                su ~= list1[i_1++];
+            } else {
+                su ~= cast(T) list1[i_1++];
+            }
+            i_2++;
+        }
+    }
+    return su;
+}
+unittest {
+    auto list1 = [2, 7, 8, 16, 21, 32, 64];
+    auto list2 = [1, 2, 3, 4, 7, 21, 64, 128];
+    assert(set_intersection(list1, list2) == [2, 7, 21, 64]);
+    assert(set_intersection(list2, list1) == [2, 7, 21, 64]);
+    mixin DummyClass;
+    auto dlist1 = [new Dummy(2), new Dummy(7), new Dummy(8), new Dummy(16), new Dummy(21), new Dummy(32), new Dummy(64)];
+    auto dlist2 = [new Dummy(1), new Dummy(2), new Dummy(3), new Dummy(4), new Dummy(7), new Dummy(21), new Dummy(64), new Dummy(128)];
+    assert(set_intersection(dlist1, dlist2) == set_intersection(dlist2, dlist1));
+}
