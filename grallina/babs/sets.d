@@ -51,6 +51,10 @@ private bool contains(T)(in T[] list, in T item)
     auto tail = find(list, item);
     return tail.length && tail[0] == item;
 }
+unittest {
+    assert(contains([1, 3, 9, 12], 3));
+    assert(!contains([1, 3, 9, 12], 5));
+}
 
 private bool is_ordered(T)(in T[] list)
 {
@@ -105,9 +109,7 @@ in {
     assert(is_ordered(list));
 }
 out (result) {
-    for (auto i = 1; i < result.length; i++) {
-        assert(result[i - 1] != result[i]);
-    }
+    for (auto i = 1; i < result.length; i++) assert(result[i - 1] != result[i]);
     foreach (item; list) assert(result.contains(item));
 }
 body {
@@ -217,15 +219,9 @@ unittest {
     }
 }
 
-private T[] to_sorted_no_dups(T)(in T[] list...)
+private T[] to_ordered_no_dups(T)(in T[] list...)
 out (result) {
-    for (auto i = 1; i < result.length; i++) {
-        static if (is(T == class)) { // WORKAROUND: class opCmp() design flaw
-            assert(cast(T) result[i - 1] < cast(T) result[i]);
-        } else {
-            assert(result[i - 1] < result[i]);
-        }
-    }
+    assert(is_ordered_no_dups(result));
     foreach (item; list) assert(result.contains(item));
 }
 body {
@@ -238,16 +234,16 @@ body {
 }
 unittest {
     int[] empty;
-    assert(to_sorted_no_dups(empty) == []);
+    assert(to_ordered_no_dups(empty) == []);
     int[] single = [1];
-    assert(to_sorted_no_dups(single) == [1]);
+    assert(to_ordered_no_dups(single) == [1]);
     int[] pair = [1, 1];
-    assert(to_sorted_no_dups(pair) == [1]);
+    assert(to_ordered_no_dups(pair) == [1]);
     int[] few = [5, 1, 1, 5, 6, 6, 3];
-    assert(to_sorted_no_dups(few) == [1, 3, 5, 6]);
+    assert(to_ordered_no_dups(few) == [1, 3, 5, 6]);
     mixin DummyClass;
     Dummy[] dfew = [new Dummy(5), new Dummy(1), new Dummy(1), new Dummy(5), new Dummy(6), new Dummy(6), new Dummy(3)];
-    assert(to_sorted_no_dups(dfew) == [new Dummy(1), new Dummy(3), new Dummy(5), new Dummy(6)]);
+    assert(to_ordered_no_dups(dfew) == [new Dummy(1), new Dummy(3), new Dummy(5), new Dummy(6)]);
 }
 
 private ref T[] insert(T)(ref T[] list, in T item)
@@ -296,10 +292,8 @@ in {
 }
 out (result) {
     assert(is_ordered_no_dups(result));
-    assert(find(result, item).length == 0);
-    foreach (i; list) {
-        if (i != item) assert(result.contains(i));
-    }
+    assert(!result.contains(item));
+    foreach (i; list) if (i != item) assert(result.contains(i));
 }
 body {
     auto bsr = binary_search(list, item);
