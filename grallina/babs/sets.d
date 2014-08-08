@@ -561,3 +561,45 @@ unittest {
     auto dlist2 = [new Dummy(1), new Dummy(2), new Dummy(3), new Dummy(4), new Dummy(7), new Dummy(21), new Dummy(64), new Dummy(128)];
     assert(disjoint(dlist1, dlist2) == disjoint(dlist2, dlist1));
 }
+
+private bool contains(T)(in T[] list1, in T[] list2)
+in {
+    assert(is_ordered_no_dups(list1) && is_ordered_no_dups(list2));
+}
+out (result) {
+    auto count = 0;
+    foreach (i; list2) if (list1.contains(i)) count++;
+    assert(result == (count == list2.length));
+}
+body {
+    size_t i_1, i_2;
+    while (i_1 < list1.length && i_2 < list2.length) {
+        if (cast(T) list1[i_1] < cast(T) list2[i_2]) { // WORKAROUND: class opCmp() design flaw
+            i_1++;
+        } else if (cast(T) list2[i_2] < cast(T) list1[i_1]) { // WORKAROUND: class opCmp() design flaw
+            return false;
+        } else {
+            i_1++;
+            i_2++;
+        }
+    }
+    return i_2 == list2.length;
+}
+unittest {
+    auto list1 = [2, 7, 8, 16, 21, 32, 64];
+    auto list2 = [1, 2, 3, 4, 7, 21, 64, 128];
+    auto list3 = set_difference(list1, list2);
+    auto list4 = set_difference(list2, list3);
+    assert(list1.contains(list1));
+    assert(!list1.contains(list2));
+    assert(list1.contains(list3));
+    assert(!list1.contains(list4));
+    assert(list2.contains(list2));
+    assert(!list2.contains(list1));
+    assert(!list2.contains(list3));
+    assert(list2.contains(list4));
+    mixin DummyClass;
+    auto dlist1 = [new Dummy(2), new Dummy(7), new Dummy(8), new Dummy(16), new Dummy(21), new Dummy(32), new Dummy(64)];
+    auto dlist2 = [new Dummy(1), new Dummy(2), new Dummy(3), new Dummy(4), new Dummy(7), new Dummy(21), new Dummy(64), new Dummy(128)];
+    assert(contains(dlist1, dlist2) == contains(dlist2, dlist1));
+}
